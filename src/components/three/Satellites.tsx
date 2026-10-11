@@ -14,6 +14,7 @@ import { satelliteShader } from "@/components/three/satelliteShader";
 import { BRAND_COLORS, ORBITS, PLANET, SATELLITES } from "@/lib/constants";
 import { orbitRotation } from "@/lib/orbits";
 import { createRandom, randomBetween } from "@/lib/random";
+import { sceneCurrent } from "@/lib/sceneStore";
 
 interface SatellitesProps {
   count: number;
@@ -105,6 +106,7 @@ function createUniforms() {
     uColorCool: { value: new Color(BRAND_COLORS.cyan) },
     uColorWarm: { value: new Color(BRAND_COLORS.warm) },
     uPlanetRadius: { value: PLANET.radius },
+    uSceneOpacity: { value: 1 },
   };
 }
 
@@ -130,6 +132,7 @@ export function Satellites({
     // Same scale PointsMaterial uses for size attenuation: half the drawing-buffer height.
     material.uniforms.uPointScale.value =
       (state.size.height * state.viewport.dpr) / 2;
+    material.uniforms.uSceneOpacity.value = sceneCurrent.orbits;
     if (animated) material.uniforms.uTime.value += delta;
   });
 

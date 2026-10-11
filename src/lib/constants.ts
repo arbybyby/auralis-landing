@@ -13,8 +13,29 @@ export const HIGH_POWER_LIMITS = {
   minMemoryGb: 8,
 } as const;
 
-/** Matches Tailwind's `lg` breakpoint (64rem). */
-export const DESKTOP_MIN_WIDTH = 1024;
+/** Tailwind's `lg` breakpoint (64rem): the desktop scene layout applies from here up. */
+export const DESKTOP_QUERY = "(min-width: 64rem)";
+
+export const SMOOTH_SCROLL = {
+  /** Share of the remaining distance covered each frame; lower is smoother but laggier. */
+  lerp: 0.1,
+} as const;
+
+/** How scrolling drives the scene. */
+export const SCENE_SCROLL = {
+  /** Seconds the scene trails the scroll position (GSAP scrub). */
+  scrub: 0.8,
+  /** Damping rate as the canvas eases towards the scroll target; higher settles faster. */
+  damping: 4,
+  /** Extra planet spin per viewport height per second of scrolling, in radians per second. */
+  velocitySpin: 0.6,
+  /** Cap on that extra spin, in radians per second. */
+  maxVelocitySpin: 0.9,
+  /** Planet opacity below which the whole canvas layer fades out with it. */
+  layerFadeBelow: 0.25,
+  /** Layer opacity below which the canvas stops rendering until it comes back. */
+  pauseBelow: 0.1,
+} as const;
 
 /** Mobile menu links rise in one after another once the overlay starts to fade in. */
 export const MOBILE_MENU_REVEAL = {
@@ -83,14 +104,6 @@ export const ATMOSPHERE = {
   intensity: 0.11,
   /** Sphere segments; the halo is smooth, so this only needs to keep the silhouette round. */
   segments: 64,
-} as const;
-
-/** Where the planet and its atmosphere sit behind the hero, in scene units. */
-export const GLOBE_LAYOUT = {
-  // Far enough right that the headline and subtitle clear the planet from 1024px to 2560px wide.
-  desktop: { x: 2.3, y: -0.25, scale: 0.9 },
-  // Small and low, so the globe rises from behind the buttons instead of the subtitle.
-  mobile: { x: 0, y: -2.2, scale: 0.62 },
 } as const;
 
 /** How the scene turns to follow the pointer or the device's tilt. The camera never moves. */

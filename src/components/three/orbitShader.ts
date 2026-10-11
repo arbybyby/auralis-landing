@@ -22,6 +22,8 @@ export const orbitShader = {
   `,
 
   fragment: /* glsl */ `
+    // Scroll-driven multiplier on this layer's opacity; 1 is the hero look.
+    uniform float uSceneOpacity;
     uniform vec3 uColor;
     uniform float uMinOpacity;
     uniform float uMaxOpacity;
@@ -34,7 +36,7 @@ export const orbitShader = {
       // Angle from the interpolated position, not a per-vertex value, so the loop has no seam.
       float angle = atan(vCircle.y, vCircle.x);
       float highlight = pow(0.5 + 0.5 * cos(angle), uSharpness);
-      float opacity = mix(uMinOpacity, uMaxOpacity, highlight) * vVisibility;
+      float opacity = mix(uMinOpacity, uMaxOpacity, highlight) * vVisibility * uSceneOpacity;
 
       gl_FragColor = vec4(uColor, opacity);
       #include <colorspace_fragment>

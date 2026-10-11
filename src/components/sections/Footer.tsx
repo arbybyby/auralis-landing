@@ -5,7 +5,8 @@ import { site } from "@/content/site";
 
 export function Footer() {
   return (
-    <footer className="border-t border-line py-12">
+    // Solid, so the scene's last state rises from behind the footer instead of under its links.
+    <footer className="border-t border-line bg-void py-12">
       <Container className="flex flex-col gap-10">
         <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
           <a href="#top">

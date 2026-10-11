@@ -1,10 +1,13 @@
-import { Suspense } from "react";
+import { useThree } from "@react-three/fiber";
+import { Suspense, useEffect } from "react";
 
 import { Globe } from "@/components/three/Globe";
 import { ParallaxGroup } from "@/components/three/ParallaxGroup";
 import { Stars } from "@/components/three/Stars";
 import { usePointerParallax } from "@/hooks/usePointerParallax";
+import { useSceneEasing } from "@/hooks/useSceneEasing";
 import { PARALLAX, PLANET, SCENE_TIERS, STARS } from "@/lib/constants";
+import { subscribeSceneTarget } from "@/lib/sceneStore";
 
 interface SceneProps {
   settings: (typeof SCENE_TIERS)[keyof typeof SCENE_TIERS];
@@ -12,9 +15,14 @@ interface SceneProps {
   animated: boolean;
 }
 
-/** Everything inside the canvas, steered by one shared pointer or tilt input. */
+/** Everything inside the canvas, placed by scroll and steered by one shared pointer or tilt input. */
 export function Scene({ settings, animated }: SceneProps) {
   const parallax = usePointerParallax();
+  useSceneEasing(animated);
+
+  // A still scene only renders on demand, so a new scroll state has to ask for a frame.
+  const invalidate = useThree((state) => state.invalidate);
+  useEffect(() => subscribeSceneTarget(() => invalidate()), [invalidate]);
 
   return (
     <>

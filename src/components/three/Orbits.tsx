@@ -6,12 +6,13 @@ import {
   BufferGeometry,
   Color,
 } from "three";
-import type { LineLoop } from "three";
+import type { LineLoop, ShaderMaterial } from "three";
 
 import { orbitShader } from "@/components/three/orbitShader";
 import { BRAND_COLORS, ORBITS, PLANET } from "@/lib/constants";
 import { orbitRotation } from "@/lib/orbits";
 import type { OrbitRing } from "@/lib/orbits";
+import { sceneCurrent } from "@/lib/sceneStore";
 
 interface OrbitsProps {
   /** How many of the configured rings to draw, innermost first. */
@@ -40,6 +41,7 @@ function createCircle(segments: number): BufferGeometry {
 
 function Orbit({ ring, geometry, animated }: OrbitProps) {
   const spinRef = useRef<LineLoop>(null);
+  const materialRef = useRef<ShaderMaterial>(null);
 
   const uniforms = useMemo(
     () => ({
@@ -49,12 +51,16 @@ function Orbit({ ring, geometry, animated }: OrbitProps) {
       uMinOpacity: { value: ORBITS.opacity.min },
       uMaxOpacity: { value: ORBITS.opacity.max },
       uSharpness: { value: ORBITS.highlightSharpness },
+      uSceneOpacity: { value: 1 },
     }),
     [ring],
   );
 
-  // Spinning a circle about its own axis leaves the path in place and sweeps the highlight round.
   useFrame((_, delta) => {
+    if (materialRef.current) {
+      materialRef.current.uniforms.uSceneOpacity.value = sceneCurrent.orbits;
+    }
+    // Spinning a circle about its own axis leaves the path in place and sweeps the highlight round.
     if (animated && spinRef.current) {
       spinRef.current.rotation.y += ring.spinSpeed * delta;
     }
@@ -65,6 +71,7 @@ function Orbit({ ring, geometry, animated }: OrbitProps) {
       {/* The shader scales the ring, so the unit circle's bounds are no use for culling. */}
       <lineLoop ref={spinRef} geometry={geometry} frustumCulled={false}>
         <shaderMaterial
+          ref={materialRef}
           vertexShader={orbitShader.vertex}
           fragmentShader={orbitShader.fragment}
           uniforms={uniforms}

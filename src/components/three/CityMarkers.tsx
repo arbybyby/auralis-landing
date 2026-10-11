@@ -12,6 +12,7 @@ import type { ShaderMaterial } from "three";
 import { cityMarkerShader } from "@/components/three/cityMarkerShader";
 import { CITY_DIRECTIONS, CITIES } from "@/lib/cities";
 import { BRAND_COLORS, CITY_MARKERS, PLANET } from "@/lib/constants";
+import { sceneCurrent } from "@/lib/sceneStore";
 
 interface CityMarkersProps {
   /** Shared with the arcs, which raise a city's `uFlash` entry when they land on it. */
@@ -50,6 +51,7 @@ function createUniforms() {
     uFlash: { value: new Float32Array(CITIES.length) },
     uColor: { value: new Color(BRAND_COLORS.cyan) },
     uPlanetRadius: { value: PLANET.radius },
+    uSceneOpacity: { value: 1 },
   };
 }
 
@@ -67,6 +69,7 @@ export function CityMarkers({ materialRef, animated }: CityMarkersProps) {
     // Same scale PointsMaterial uses for size attenuation: half the drawing-buffer height.
     material.uniforms.uPointScale.value =
       (state.size.height * state.viewport.dpr) / 2;
+    material.uniforms.uSceneOpacity.value = sceneCurrent.planet;
     if (!animated) return;
 
     material.uniforms.uTime.value += CITY_MARKERS.pulseSpeed * delta;

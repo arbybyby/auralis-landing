@@ -3,7 +3,7 @@ import { testimonial } from "@/content/testimonial";
 
 export function Testimonial() {
   return (
-    <Section labelledBy="testimonial-author">
+    <Section id="testimonial" labelledBy="testimonial-author">
       <figure className="mx-auto max-w-4xl text-center">
         <blockquote className="font-serif text-h2 text-balance">
           <p>“{testimonial.quote}”</p>

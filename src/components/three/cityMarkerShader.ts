@@ -37,6 +37,8 @@ export const cityMarkerShader = {
   `,
 
   fragment: /* glsl */ `
+    // Scroll-driven multiplier on this layer's opacity; 1 is the hero look.
+    uniform float uSceneOpacity;
     uniform vec3 uColor;
 
     varying float vFlash;
@@ -59,7 +61,7 @@ export const cityMarkerShader = {
       vec3 color = mix(uColor, vec3(1.0), 0.35 + 0.5 * vFlash);
       float alpha = core * (0.85 + vFlash) + ring * RING_OPACITY * (1.0 + vFlash);
 
-      gl_FragColor = vec4(color, alpha * vVisibility);
+      gl_FragColor = vec4(color, alpha * vVisibility * uSceneOpacity);
       #include <colorspace_fragment>
     }
   `,

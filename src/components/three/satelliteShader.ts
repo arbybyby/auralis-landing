@@ -52,6 +52,8 @@ export const satelliteShader = {
   `,
 
   fragment: /* glsl */ `
+    // Scroll-driven multiplier on this layer's opacity; 1 is the hero look.
+    uniform float uSceneOpacity;
     uniform vec3 uColorCool;
     uniform vec3 uColorWarm;
     uniform float uTrailOpacity;
@@ -71,7 +73,7 @@ export const satelliteShader = {
       color = mix(color, vec3(1.0), vIsHead * HEAD_WHITENING);
       float strength = mix(uTrailOpacity * vFade, 1.0, vIsHead);
 
-      gl_FragColor = vec4(color, alpha * strength * vVisibility);
+      gl_FragColor = vec4(color, alpha * strength * vVisibility * uSceneOpacity);
       #include <colorspace_fragment>
     }
   `,

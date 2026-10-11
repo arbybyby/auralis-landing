@@ -16,6 +16,7 @@ import { CITY_DIRECTIONS, cityAngle, cityIndex, pickRoute } from "@/lib/cities";
 import type { Route } from "@/lib/cities";
 import { BRAND_COLORS, DATA_ARCS, PLANET } from "@/lib/constants";
 import { randomBetween } from "@/lib/random";
+import { sceneCurrent } from "@/lib/sceneStore";
 
 interface DataArcsProps {
   /** Arcs in flight at once. */
@@ -85,6 +86,7 @@ function createArcUniforms(index: number, animated: boolean): ArcUniforms {
     uProgress: { value: animated ? 0 : DATA_ARCS.staticProgress },
     uOpacity: { value: animated ? 0 : 1 },
     uPlanetRadius: { value: PLANET.radius },
+    uSceneOpacity: { value: 1 },
   };
   applyRoute(uniforms, { from, to, angle: cityAngle(from, to) }, CYAN);
   return uniforms;
@@ -184,14 +186,13 @@ export function DataArcs({ count, animated }: DataArcsProps) {
   }, [arcUniforms, animated]);
 
   useFrame((_, delta) => {
-    for (let index = 0; index < slots.current.length; index++) {
+    for (let index = 0; index < arcUniforms.length; index++) {
       const material = arcMaterials.current[index];
       if (!material) continue;
-      const landedOn = advanceSlot(
-        slots.current[index],
-        material.uniforms,
-        delta,
-      );
+      material.uniforms.uSceneOpacity.value = sceneCurrent.planet;
+      const slot = slots.current[index];
+      if (!slot) continue;
+      const landedOn = advanceSlot(slot, material.uniforms, delta);
       if (landedOn >= 0 && markersRef.current) {
         markersRef.current.uniforms.uFlash.value[landedOn] = 1;
       }

@@ -1,4 +1,9 @@
+import { useFrame } from "@react-three/fiber";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
+import type { BloomEffect } from "postprocessing";
+import { useRef } from "react";
+
+import { sceneCurrent } from "@/lib/sceneStore";
 
 interface BloomSettings {
   intensity: number;
@@ -13,10 +18,19 @@ interface EffectsProps {
 }
 
 export function Effects({ bloom }: EffectsProps) {
+  const bloomRef = useRef<BloomEffect>(null);
+
+  // Each section scales the tier's bloom; the hero keeps it as set.
+  useFrame(() => {
+    if (bloomRef.current) {
+      bloomRef.current.intensity = bloom.intensity * sceneCurrent.bloom;
+    }
+  });
+
   return (
     // The scene is soft sprites and a feathered halo with no hard edges, so MSAA would cost without showing.
     <EffectComposer multisampling={0}>
-      <Bloom mipmapBlur {...bloom} />
+      <Bloom ref={bloomRef} mipmapBlur {...bloom} />
     </EffectComposer>
   );
 }

@@ -17,6 +17,7 @@ import { loadLandMask } from "@/lib/landMask";
 import type { LandMask } from "@/lib/landMask";
 import { createPlanetPoints } from "@/lib/planetPoints";
 import type { PlanetPointCounts } from "@/lib/planetPoints";
+import { sceneCurrent, sceneMotion } from "@/lib/sceneStore";
 
 interface PlanetProps {
   /** Target particle counts; lower device tiers pass a smaller budget. */
@@ -54,6 +55,7 @@ function createUniforms() {
     uColorPole: { value: new Color(BRAND_COLORS.violet) },
     uGlowDirection: { value: new Vector3(0, 0, 1) },
     uGlowStrength: { value: 0 },
+    uSceneOpacity: { value: 1 },
   };
 }
 
@@ -77,7 +79,10 @@ export function Planet({
   const uniforms = useMemo(() => createUniforms(), []);
 
   useFrame((state, delta) => {
-    if (spinRef.current) spinRef.current.rotation.y += rotationSpeed * delta;
+    if (spinRef.current) {
+      spinRef.current.rotation.y +=
+        (rotationSpeed + sceneMotion.spinBoost) * delta;
+    }
 
     const material = materialRef.current;
     const tilt = tiltRef.current;
@@ -85,6 +90,7 @@ export function Planet({
     // Same scale PointsMaterial uses for size attenuation: half the drawing-buffer height.
     material.uniforms.uPointScale.value =
       (state.size.height * state.viewport.dpr) / 2;
+    material.uniforms.uSceneOpacity.value = sceneCurrent.planet;
 
     // Light the side facing the pointer: the direction runs from the planet's centre on screen
     // towards the pointer, in view space, leaning towards the viewer.

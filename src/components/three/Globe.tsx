@@ -1,4 +1,3 @@
-import { useThree } from "@react-three/fiber";
 import type { RefObject } from "react";
 
 import { Atmosphere } from "@/components/three/Atmosphere";
@@ -7,8 +6,9 @@ import { Orbits } from "@/components/three/Orbits";
 import { ParallaxGroup } from "@/components/three/ParallaxGroup";
 import { Planet } from "@/components/three/Planet";
 import { Satellites } from "@/components/three/Satellites";
+import { ScrollGroup } from "@/components/three/ScrollGroup";
 import type { ParallaxInput } from "@/hooks/usePointerParallax";
-import { DESKTOP_MIN_WIDTH, GLOBE_LAYOUT, PARALLAX } from "@/lib/constants";
+import { PARALLAX } from "@/lib/constants";
 import type { PlanetPointCounts } from "@/lib/planetPoints";
 
 interface GlobeProps {
@@ -25,7 +25,8 @@ interface GlobeProps {
 
 /**
  * Everything that belongs to the planet shares one transform, so whatever moves the globe moves
- * it all. Markers and arcs sit inside the planet's spin; orbits and satellites do not.
+ * it all: scroll places the system, the pointer turns it, and the planet spins inside. Markers and
+ * arcs sit inside the planet's spin; orbits and satellites do not.
  */
 export function Globe({
   pointCounts,
@@ -36,11 +37,8 @@ export function Globe({
   animated,
   parallax,
 }: GlobeProps) {
-  const isDesktop = useThree((state) => state.size.width >= DESKTOP_MIN_WIDTH);
-  const layout = isDesktop ? GLOBE_LAYOUT.desktop : GLOBE_LAYOUT.mobile;
-
   return (
-    <group position={[layout.x, layout.y, 0]} scale={layout.scale}>
+    <ScrollGroup>
       <ParallaxGroup input={parallax}>
         <Planet
           pointCounts={pointCounts}
@@ -61,6 +59,6 @@ export function Globe({
           />
         </ParallaxGroup>
       </ParallaxGroup>
-    </group>
+    </ScrollGroup>
   );
 }

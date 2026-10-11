@@ -49,6 +49,8 @@ export const planetShader = {
   `,
 
   fragment: /* glsl */ `
+    // Scroll-driven multiplier on this layer's opacity; 1 is the hero look.
+    uniform float uSceneOpacity;
     uniform vec3 uColorEquator;
     uniform vec3 uColorPole;
     uniform float uLandOpacity;
@@ -73,7 +75,7 @@ export const planetShader = {
       float opacity = mix(uOceanOpacity, uLandOpacity, vLand) * hemisphere;
 
       vec3 color = mix(uColorEquator, uColorPole, vGradient) * (1.0 + rim * RIM_BOOST + vGlow);
-      gl_FragColor = vec4(color, alpha * opacity);
+      gl_FragColor = vec4(color, alpha * opacity * uSceneOpacity);
       #include <colorspace_fragment>
     }
   `,

@@ -35,6 +35,8 @@ export const arcShader = {
   `,
 
   fragment: /* glsl */ `
+    // Scroll-driven multiplier on this layer's opacity; 1 is the hero look.
+    uniform float uSceneOpacity;
     uniform vec3 uColor;
     // Position of the pulse along the arc, 0 to 1.
     uniform float uProgress;
@@ -56,7 +58,7 @@ export const arcShader = {
       float offset = (vT - uProgress) / PULSE_WIDTH;
       float pulse = exp(-offset * offset);
 
-      float alpha = (LINE_OPACITY * drawn + TRAIL_OPACITY * trail + pulse) * uOpacity * vVisibility;
+      float alpha = (LINE_OPACITY * drawn + TRAIL_OPACITY * trail + pulse) * uOpacity * vVisibility * uSceneOpacity;
       vec3 color = mix(uColor, vec3(1.0), pulse * PULSE_WHITENING);
 
       gl_FragColor = vec4(color, alpha);

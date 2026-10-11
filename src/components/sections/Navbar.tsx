@@ -7,9 +7,11 @@ import { AuralisLogo } from "@/components/ui/AuralisLogo";
 import { Container } from "@/components/ui/Container";
 import { site } from "@/content/site";
 import { MOBILE_MENU_REVEAL } from "@/lib/constants";
+import { startSmoothScroll, stopSmoothScroll } from "@/lib/smoothScroll";
 import { cn } from "@/lib/utils";
 
-const DESKTOP_QUERY = "(min-width: 48rem)";
+// The full navigation replaces the menu from Tailwind's md breakpoint up.
+const DESKTOP_NAV_QUERY = "(min-width: 48rem)";
 const MENU_ID = "mobile-menu";
 // Both lines sit on the centre and only transform, so the burger morphs into a cross smoothly.
 const BURGER_LINE =
@@ -28,17 +30,19 @@ export function Navbar() {
       setIsOpen(false);
       toggleRef.current?.focus();
     };
-    const desktop = window.matchMedia(DESKTOP_QUERY);
+    const desktop = window.matchMedia(DESKTOP_NAV_QUERY);
     const closeOnDesktop = () => setIsOpen(false);
 
     document.addEventListener("keydown", closeOnEscape);
     desktop.addEventListener("change", closeOnDesktop);
     document.body.style.overflow = "hidden";
+    stopSmoothScroll();
 
     return () => {
       document.removeEventListener("keydown", closeOnEscape);
       desktop.removeEventListener("change", closeOnDesktop);
       document.body.style.overflow = "";
+      startSmoothScroll();
     };
   }, [isOpen]);
 
