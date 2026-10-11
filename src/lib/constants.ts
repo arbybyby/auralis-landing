@@ -13,6 +13,12 @@ export const HIGH_POWER_LIMITS = {
 /** Matches Tailwind's `lg` breakpoint (64rem). */
 export const DESKTOP_MIN_WIDTH = 1024;
 
+/** Mobile menu links rise in one after another once the overlay starts to fade in. */
+export const MOBILE_MENU_REVEAL = {
+  delayMs: 100,
+  staggerMs: 50,
+} as const;
+
 /** Mirror --color-accent and --color-accent-2 in globals.css. */
 export const BRAND_COLORS = {
   cyan: "#5ee7ff",

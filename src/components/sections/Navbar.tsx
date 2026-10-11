@@ -6,9 +6,14 @@ import type { KeyboardEvent } from "react";
 import { AuralisLogo } from "@/components/ui/AuralisLogo";
 import { Container } from "@/components/ui/Container";
 import { site } from "@/content/site";
+import { MOBILE_MENU_REVEAL } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 const DESKTOP_QUERY = "(min-width: 48rem)";
 const MENU_ID = "mobile-menu";
+// Both lines sit on the centre and only transform, so the burger morphs into a cross smoothly.
+const BURGER_LINE =
+  "absolute inset-x-0 top-1/2 h-px bg-text transition-transform duration-300 ease-out-expo";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -62,11 +67,28 @@ export function Navbar() {
 
   const close = () => setIsOpen(false);
 
+  // Links rise in one after another on open and leave together on close.
+  const revealItem = cn(
+    "transition duration-500 ease-out-expo",
+    isOpen ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0",
+  );
+  const revealDelay = (index: number) => ({
+    transitionDelay: isOpen
+      ? `${MOBILE_MENU_REVEAL.delayMs + index * MOBILE_MENU_REVEAL.staggerMs}ms`
+      : "0ms",
+  });
+
   return (
     <header
       onKeyDown={trapFocus}
-      className="fixed inset-x-0 top-0 z-50 border-b border-line bg-void/40 backdrop-blur-xl"
+      className="fixed inset-x-0 top-0 z-50 border-b border-line"
     >
+      {/* The blur sits on its own layer: a backdrop-filter on the header itself would make it the
+          containing block for the fixed menu below and squeeze the menu into the header's height. */}
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10 bg-void/40 backdrop-blur-xl"
+      />
       <Container className="flex h-16 items-center justify-between">
         <a href="#top" onClick={close} className="relative z-10">
           <AuralisLogo />
@@ -107,50 +129,64 @@ export function Navbar() {
           >
             <span aria-hidden className="relative block h-3.5 w-6">
               <span
-                className={`absolute inset-x-0 h-px bg-text transition-transform duration-300 ease-out-expo ${
-                  isOpen ? "top-1/2 rotate-45" : "top-0"
-                }`}
+                className={cn(
+                  BURGER_LINE,
+                  isOpen ? "rotate-45" : "-translate-y-1.5",
+                )}
               />
               <span
-                className={`absolute inset-x-0 h-px bg-text transition-transform duration-300 ease-out-expo ${
-                  isOpen ? "top-1/2 -rotate-45" : "bottom-0"
-                }`}
+                className={cn(
+                  BURGER_LINE,
+                  isOpen ? "-rotate-45" : "translate-y-1.5",
+                )}
               />
             </span>
           </button>
         </div>
       </Container>
 
-      {isOpen && (
-        <div
-          ref={menuRef}
-          id={MENU_ID}
-          className="fixed inset-0 flex flex-col justify-center bg-void px-gutter md:hidden"
-        >
-          <ul className="flex flex-col gap-6">
-            {site.nav.map((link) => (
-              <li key={link.href}>
-                <a
-                  href={link.href}
-                  onClick={close}
-                  className="text-h2 font-medium"
-                >
-                  {link.label}
-                </a>
-              </li>
-            ))}
-            <li className="pt-4">
+      {/* Stays mounted so it can fade out; while closed it is invisible and inert, so nothing in
+          it can be reached by pointer, keyboard or screen reader. */}
+      <div
+        ref={menuRef}
+        id={MENU_ID}
+        inert={!isOpen}
+        className={cn(
+          "fixed inset-0 flex h-dvh flex-col bg-void/96 backdrop-blur-xl transition-[opacity,visibility] duration-300 ease-out-expo md:hidden",
+          !isOpen && "invisible opacity-0",
+        )}
+      >
+        {/* Scrolls below the header row, so on short screens no link slides under the logo. */}
+        <ul className="mt-16 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain px-gutter pt-10 pb-12">
+          {site.nav.map((link, index) => (
+            <li
+              key={link.href}
+              className={revealItem}
+              style={revealDelay(index)}
+            >
               <a
-                href={site.navCta.href}
+                href={link.href}
                 onClick={close}
-                className="inline-block rounded-full bg-accent px-6 py-3.5 text-small font-medium text-void"
+                className="text-h2 font-medium"
               >
-                {site.navCta.label}
+                {link.label}
               </a>
             </li>
-          </ul>
-        </div>
-      )}
+          ))}
+          <li
+            className={cn("pt-4", revealItem)}
+            style={revealDelay(site.nav.length)}
+          >
+            <a
+              href={site.navCta.href}
+              onClick={close}
+              className="inline-block rounded-full bg-accent px-6 py-3.5 text-small font-medium text-void"
+            >
+              {site.navCta.label}
+            </a>
+          </li>
+        </ul>
+      </div>
     </header>
   );
 }
