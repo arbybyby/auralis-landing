@@ -7,7 +7,7 @@ export interface HeroContent {
   subtitle: string;
   primaryCta: ContentLink;
   secondaryCta: ContentLink;
-  hints: { cursor: string; scroll: string };
+  hints: { cursor: string; tilt: string; scroll: string };
 }
 
 export const hero: HeroContent = {
@@ -16,5 +16,9 @@ export const hero: HeroContent = {
   subtitle: site.description,
   primaryCta: { label: "Request early access", href: "#access" },
   secondaryCta: { label: "Watch the demo", href: "#live" },
-  hints: { cursor: "Move your cursor to explore", scroll: "Scroll" },
+  hints: {
+    cursor: "Move your cursor to explore",
+    tilt: "Tilt your device",
+    scroll: "Scroll",
+  },
 };

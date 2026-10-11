@@ -1,18 +1,26 @@
 /**
  * Soft round particles on a sphere. Points shrink with distance like PointsMaterial, run from cyan
- * at the equator to violet at the poles, and brighten towards the silhouette.
+ * at the equator to violet at the poles, brighten towards the silhouette, and lift a little on the
+ * side facing the pointer.
  */
 export const planetShader = {
   vertex: /* glsl */ `
     uniform float uPointScale;
     uniform float uLandSize;
     uniform float uOceanSize;
+    // View-space direction towards the pointer, and how strongly that side lights up.
+    uniform vec3 uGlowDirection;
+    uniform float uGlowStrength;
 
     attribute float aLand;
 
     varying float vLand;
     varying float vFacing;
     varying float vGradient;
+    varying float vGlow;
+
+    // Narrows the lit side to a soft patch rather than a whole hemisphere.
+    const float GLOW_FOCUS = 3.0;
 
     // Stable per-point random in [0, 1), so neighbouring points differ in size and hue.
     float hash(vec3 p) {
@@ -32,6 +40,7 @@ export const planetShader = {
       // 1 facing the camera, 0 on the silhouette, negative on the far hemisphere.
       vec3 viewNormal = normalize(normalMatrix * position);
       vFacing = dot(viewNormal, normalize(-viewPosition.xyz));
+      vGlow = pow(max(dot(viewNormal, uGlowDirection), 0.0), GLOW_FOCUS) * uGlowStrength;
 
       float latitude = abs(normalize(position).y);
       vGradient = clamp(latitude + (seed - 0.5) * 0.3, 0.0, 1.0);
@@ -48,6 +57,7 @@ export const planetShader = {
     varying float vLand;
     varying float vFacing;
     varying float vGradient;
+    varying float vGlow;
 
     // The far hemisphere shows faintly through the near one, so the globe keeps its depth.
     const float BACK_OPACITY = 0.12;
@@ -62,7 +72,7 @@ export const planetShader = {
       float hemisphere = mix(BACK_OPACITY, 1.0, smoothstep(-0.3, 0.1, vFacing));
       float opacity = mix(uOceanOpacity, uLandOpacity, vLand) * hemisphere;
 
-      vec3 color = mix(uColorEquator, uColorPole, vGradient) * (1.0 + rim * RIM_BOOST);
+      vec3 color = mix(uColorEquator, uColorPole, vGradient) * (1.0 + rim * RIM_BOOST + vGlow);
       gl_FragColor = vec4(color, alpha * opacity);
       #include <colorspace_fragment>
     }

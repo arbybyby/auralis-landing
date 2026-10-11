@@ -1,3 +1,6 @@
+import type { CityId } from "@/lib/cities";
+import type { OrbitRing } from "@/lib/orbits";
+
 // Devices below either threshold get the low-power (non-3D) experience.
 export const LOW_POWER_LIMITS = {
   minCpuCores: 4,
@@ -19,10 +22,11 @@ export const MOBILE_MENU_REVEAL = {
   staggerMs: 50,
 } as const;
 
-/** Mirror --color-accent and --color-accent-2 in globals.css. */
+/** Mirror --color-accent, --color-accent-2 and --color-warm in globals.css. */
 export const BRAND_COLORS = {
   cyan: "#5ee7ff",
   violet: "#7c5cff",
+  warm: "#ffb86b",
 } as const;
 
 /**
@@ -35,12 +39,18 @@ export const SCENE_TIERS = {
     planetPoints: { land: 20_000, ocean: 3_000 },
     starCount: 1_200,
     bloom: { intensity: 0.9, luminanceThreshold: 0.15, radius: 0.7, levels: 8 },
+    orbitCount: 3,
+    satellites: { count: 12, trailLength: 8 },
+    arcCount: 7,
   },
   medium: {
     dpr: { min: 1, max: 1.25 },
     planetPoints: { land: 12_000, ocean: 2_000 },
     starCount: 600,
     bloom: { intensity: 0.6, luminanceThreshold: 0.15, radius: 0.6, levels: 5 },
+    orbitCount: 2,
+    satellites: { count: 8, trailLength: 5 },
+    arcCount: 4,
   },
 } as const;
 
@@ -83,6 +93,28 @@ export const GLOBE_LAYOUT = {
   mobile: { x: 0, y: -2.2, scale: 0.62 },
 } as const;
 
+/** How the scene turns to follow the pointer or the device's tilt. The camera never moves. */
+export const PARALLAX = {
+  /** Globe rotation at full input, in radians, on top of the planet's own spin. */
+  range: { x: 0.18, y: 0.28 },
+  /** Orbits and satellites turn this much further than the planet, so the layers separate. */
+  orbitFactor: 1.15,
+  /** Stars turn the other way, by this share of the globe's rotation. */
+  starFactor: -0.15,
+  /** Damping rate of the smoothed input; higher settles faster. */
+  damping: 3.5,
+  /** Tilt away from the starting pose, in degrees, that counts as full input. */
+  tiltRangeDegrees: 20,
+} as const;
+
+/** The planet brightens slightly on the side facing the pointer. */
+export const POINTER_GLOW = {
+  /** Extra brightness at the centre of the lit side. */
+  strength: 0.55,
+  /** Leans the lit side towards the viewer, so it stays on the visible face. */
+  forwardBias: 0.9,
+} as const;
+
 export const STARS = {
   /** Radius of the shell the stars sit on, centred on the scene origin. */
   radius: 25,
@@ -97,4 +129,85 @@ export const STARS = {
   twinkleSpeed: 0.8,
   /** Fixed seed so the sky looks the same on every visit. */
   seed: 7,
+} as const;
+
+// Steep nodes keep the rings upright beside the planet, clear of the hero copy on the left.
+export const ORBITS = {
+  rings: [
+    {
+      radiusScale: 1.35,
+      inclination: 0.6,
+      node: -1.1,
+      spinSpeed: 0.06,
+      color: "cyan",
+    },
+    {
+      radiusScale: 1.6,
+      inclination: 0.75,
+      node: 1.25,
+      spinSpeed: -0.045,
+      color: "violet",
+    },
+    {
+      radiusScale: 1.9,
+      inclination: 0.5,
+      node: -1.4,
+      spinSpeed: 0.03,
+      color: "cyan",
+    },
+  ] satisfies OrbitRing[],
+  /** Line segments per ring; enough that the ellipse never looks polygonal. */
+  segments: 192,
+  /** Opacity at the dimmest and brightest point along each ring. */
+  opacity: { min: 0.04, max: 0.32 },
+  /** Higher values shorten the bright stretch of each ring. */
+  highlightSharpness: 4,
+} as const;
+
+export const SATELLITES = {
+  /** Angular speed along the orbit, in radians per second. */
+  speed: { min: 0.12, max: 0.28 },
+  /** Share of satellites that travel against the others. */
+  retrogradeShare: 0.35,
+  /** Every nth satellite is drawn in the warm accent colour. */
+  warmEvery: 5,
+  /** Angle between trail samples, in radians. */
+  trailSpacing: 0.016,
+  /** Point diameter in scene units, before perspective. */
+  size: { head: 0.085, trail: 0.05 },
+  trailOpacity: 0.55,
+  seed: 11,
+} as const;
+
+export const CITY_MARKERS = {
+  /** Radius relative to the planet's; just off the surface so occlusion never clips them. */
+  altitude: 1.006,
+  /** Sprite diameter in scene units, large enough to hold the pulse ring. */
+  size: 0.26,
+  /** Pulse rings per second. */
+  pulseSpeed: 0.45,
+  /** Seconds for an arrival flash to fade. */
+  flashSeconds: 0.9,
+} as const;
+
+export const DATA_ARCS = {
+  /** Vertices along each arc. */
+  segments: 64,
+  /** Peak height above the surface per radian travelled, relative to the planet's radius. */
+  liftPerRadian: 0.18,
+  /** City pairs closer or further apart than this, in radians, are skipped. */
+  distance: { min: 0.35, max: 2.2 },
+  travelSeconds: { base: 0.8, perRadian: 0.9 },
+  fadeSeconds: 0.9,
+  /** Pause before a slot picks its next pair. */
+  gapSeconds: { min: 0.3, max: 1.6 },
+  /** Share of arcs drawn in violet; the rest are cyan. */
+  violetShare: 0.3,
+  /** Arcs held mid-flight when motion is reduced. */
+  staticRoutes: [
+    ["london", "newYork"],
+    ["lagos", "dubai"],
+    ["nairobi", "capeTown"],
+  ] satisfies [CityId, CityId][],
+  staticProgress: 0.72,
 } as const;

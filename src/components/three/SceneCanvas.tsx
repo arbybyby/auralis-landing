@@ -5,12 +5,11 @@ import type { RootState } from "@react-three/fiber";
 import { lazy, Suspense } from "react";
 
 import { Effects } from "@/components/three/Effects";
-import { Globe } from "@/components/three/Globe";
-import { Stars } from "@/components/three/Stars";
+import { Scene } from "@/components/three/Scene";
 import type { DeviceTier } from "@/hooks/useDeviceTier";
 import { usePageVisible } from "@/hooks/usePageVisible";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
-import { CAMERA, PLANET, SCENE_TIERS, STARS } from "@/lib/constants";
+import { CAMERA, SCENE_TIERS } from "@/lib/constants";
 
 interface SceneCanvasProps {
   tier: Exclude<DeviceTier, "low">;
@@ -64,16 +63,7 @@ export function SceneCanvas({ tier }: SceneCanvasProps) {
         // The canvas wrapper sets pointer-events itself, so the parent's class alone is not enough.
         style={{ pointerEvents: "none" }}
       >
-        <Stars
-          count={settings.starCount}
-          twinkleSpeed={prefersReducedMotion ? 0 : STARS.twinkleSpeed}
-        />
-        <Suspense fallback={null}>
-          <Globe
-            pointCounts={settings.planetPoints}
-            rotationSpeed={prefersReducedMotion ? 0 : PLANET.rotationSpeed}
-          />
-        </Suspense>
+        <Scene settings={settings} animated={!prefersReducedMotion} />
         <Effects bloom={settings.bloom} />
         {DevStats && (
           <Suspense fallback={null}>

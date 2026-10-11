@@ -2,6 +2,7 @@ import { Accent, Heading } from "@/components/ui/Heading";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { Eyebrow } from "@/components/ui/Eyebrow";
+import { InteractionHint } from "@/components/ui/InteractionHint";
 import { hero } from "@/content/hero";
 
 export function Hero() {
@@ -37,7 +38,7 @@ export function Hero() {
       </Container>
 
       <Container className="absolute inset-x-0 bottom-8 flex items-center justify-between font-mono text-eyebrow text-muted uppercase">
-        <span className="hidden pointer-fine:inline">{hero.hints.cursor}</span>
+        <InteractionHint pointer={hero.hints.cursor} tilt={hero.hints.tilt} />
         <span className="flex items-center gap-3 sm:ml-auto">
           {hero.hints.scroll}
           <span
