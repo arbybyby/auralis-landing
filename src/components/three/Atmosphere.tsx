@@ -4,9 +4,9 @@ import { AdditiveBlending, BackSide, Color } from "three";
 import { atmosphereShader } from "@/components/three/atmosphereShader";
 import { ATMOSPHERE, BRAND_COLORS, PLANET } from "@/lib/constants";
 
-// How far from the shell's centre (as 1 - facing) the planet's own silhouette falls.
-// The colour starts turning violet there, so the cyan hugs the planet.
-const PLANET_EDGE = 1 - Math.sqrt(1 - 1 / ATMOSPHERE.radiusScale ** 2);
+// The planet's silhouette as a fraction of the shell's radius: the glow peaks there, in cyan,
+// and turns violet as it fades outwards.
+const PLANET_EDGE = 1 / ATMOSPHERE.radiusScale;
 
 function createUniforms() {
   return {

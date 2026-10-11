@@ -1,7 +1,8 @@
 /**
  * Fresnel halo for a shell slightly larger than the planet. Only the shell's far side is drawn, so
- * every fragment sees it from inside: brightest just past the planet's edge, fading to nothing at
- * the shell's own edge and towards its centre.
+ * the facing ratio maps cleanly to how far a fragment sits from the globe's centre on screen. The
+ * glow peaks at the planet's silhouette and fades to exactly nothing at the shell's edge, with no
+ * slope left there to read as a ring.
  */
 export const atmosphereShader = {
   vertex: /* glsl */ `
@@ -25,17 +26,21 @@ export const atmosphereShader = {
     varying vec3 vNormal;
     varying vec3 vToCamera;
 
-    const float FALLOFF = 4.0;
-    const float EDGE_FADE = 0.35;
+    // How far inside the planet's silhouette the glow starts, in shell radii.
+    const float INNER_FADE = 0.2;
+    // Higher values thin the halo out faster beyond the planet's edge.
+    const float OUTER_FALLOFF = 2.5;
 
     void main() {
-      // 1 behind the centre of the shell, 0 at its silhouette.
       float facing = abs(dot(normalize(vNormal), normalize(vToCamera)));
-      float rim = 1.0 - facing;
+      // Distance from the centre of the shell on screen: 0 at the centre, 1 at its silhouette.
+      float radial = sqrt(max(1.0 - facing * facing, 0.0));
 
-      float glow = pow(rim, FALLOFF) * smoothstep(0.0, EDGE_FADE, facing);
-      vec3 color = mix(uColorInner, uColorOuter, smoothstep(uPlanetEdge, 1.0, rim));
+      float outward = smoothstep(uPlanetEdge, 1.0, radial);
+      float inward = smoothstep(uPlanetEdge - INNER_FADE, uPlanetEdge, radial);
+      float glow = inward * pow(1.0 - outward, OUTER_FALLOFF);
 
+      vec3 color = mix(uColorInner, uColorOuter, outward);
       gl_FragColor = vec4(color, glow * uIntensity);
       #include <colorspace_fragment>
     }

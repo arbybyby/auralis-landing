@@ -15,6 +15,11 @@ export function Hero() {
         aria-hidden
         className="absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_75%_30%,rgb(124_92_255/0.22),transparent),radial-gradient(50%_45%_at_25%_70%,rgb(94_231_255/0.16),transparent)] mix-blend-screen"
       />
+      {/* Keeps the copy legible whichever part of the planet turns behind it. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10 bg-linear-to-b from-void/70 from-60% to-transparent to-85% lg:bg-linear-to-r lg:from-30% lg:to-60%"
+      />
       <Container>
         <Eyebrow>{hero.eyebrow}</Eyebrow>
         <Heading level={1} id="hero-title" className="mt-6 max-w-5xl">

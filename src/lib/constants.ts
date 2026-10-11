@@ -63,17 +63,18 @@ export const PLANET = {
 export const ATMOSPHERE = {
   /** Shell radius relative to the planet's. */
   radiusScale: 1.12,
-  /** Peak strength of the halo; kept low so it reads as a thin atmosphere. */
-  intensity: 0.5,
+  /** Peak opacity of the halo at the planet's edge; kept low so it reads as a thin atmosphere. */
+  intensity: 0.11,
   /** Sphere segments; the halo is smooth, so this only needs to keep the silhouette round. */
   segments: 64,
 } as const;
 
 /** Where the planet and its atmosphere sit behind the hero, in scene units. */
 export const GLOBE_LAYOUT = {
-  desktop: { x: 1.75, y: -0.25, scale: 1 },
-  // Low enough that the globe rises from below the subtitle instead of crossing it.
-  mobile: { x: 0, y: -1.75, scale: 0.72 },
+  // Far enough right that the headline and subtitle clear the planet from 1024px to 2560px wide.
+  desktop: { x: 2.3, y: -0.25, scale: 0.9 },
+  // Small and low, so the globe rises from behind the buttons instead of the subtitle.
+  mobile: { x: 0, y: -2.2, scale: 0.62 },
 } as const;
 
 export const STARS = {

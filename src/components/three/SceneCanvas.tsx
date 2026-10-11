@@ -2,7 +2,7 @@
 
 import { Canvas } from "@react-three/fiber";
 import type { RootState } from "@react-three/fiber";
-import { Suspense } from "react";
+import { lazy, Suspense } from "react";
 
 import { Effects } from "@/components/three/Effects";
 import { Globe } from "@/components/three/Globe";
@@ -27,6 +27,17 @@ const CAMERA_OPTIONS = {
   fov: CAMERA.fov,
   position: [0, 0, CAMERA.distance],
 } as const;
+
+// A static import would keep stats.js in the production bundle even when never rendered.
+// Inside this branch the import is dropped from production builds entirely.
+const DevStats =
+  process.env.NODE_ENV === "development"
+    ? lazy(() =>
+        import("@/components/three/DevStats").then((mod) => ({
+          default: mod.DevStats,
+        })),
+      )
+    : null;
 
 function chooseFrameloop(
   isPageVisible: boolean,
@@ -64,6 +75,11 @@ export function SceneCanvas({ tier }: SceneCanvasProps) {
           />
         </Suspense>
         <Effects bloom={settings.bloom} />
+        {DevStats && (
+          <Suspense fallback={null}>
+            <DevStats />
+          </Suspense>
+        )}
       </Canvas>
     </div>
   );
