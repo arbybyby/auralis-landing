@@ -1,3 +1,5 @@
+import { createRandom } from "@/lib/random";
+
 export interface StarField {
   /** x, y, z per star. */
   positions: Float32Array;
@@ -23,7 +25,7 @@ export function createStarField({
   spread,
   seed,
 }: StarFieldOptions): StarField {
-  const random = mulberry32(seed);
+  const random = createRandom(seed);
   const minDepth = Math.cos(spread);
   const positions = new Float32Array(count * 3);
   const seeds = new Float32Array(count);
@@ -45,16 +47,4 @@ export function createStarField({
   }
 
   return { positions, seeds };
-}
-
-/** Small seeded PRNG (Mulberry32), so the same seed always yields the same sky. */
-function mulberry32(seed: number): () => number {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let value = state;
-    value = Math.imul(value ^ (value >>> 15), value | 1);
-    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
-  };
 }

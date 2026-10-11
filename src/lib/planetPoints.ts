@@ -1,3 +1,5 @@
+import { vectorToLatLon } from "@/lib/geo";
+import type { Vector3Tuple } from "@/lib/geo";
 import type { LandMask } from "@/lib/landMask";
 
 export interface PlanetPointCounts {
@@ -12,8 +14,6 @@ export interface PlanetPoints {
   land: Float32Array;
 }
 
-type Vector = [x: number, y: number, z: number];
-
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
 /**
@@ -25,9 +25,10 @@ export function createPlanetPoints(
   counts: PlanetPointCounts,
   radius: number,
 ): PlanetPoints {
-  // Longitude 0 faces +z (the camera) and east runs towards +x, so the map is not mirrored.
-  const isLand = ([x, y, z]: Vector) =>
-    mask.isLand(Math.asin(y), Math.atan2(x, z));
+  const isLand = (point: Vector3Tuple) => {
+    const { latitude, longitude } = vectorToLatLon(point);
+    return mask.isLand(latitude, longitude);
+  };
 
   const landPoints = fibonacciSphere(
     Math.round(counts.land / mask.landFraction),
@@ -49,7 +50,7 @@ export function createPlanetPoints(
 }
 
 /** Unit vectors spread evenly over a sphere along a golden-angle spiral. */
-function fibonacciSphere(count: number): Vector[] {
+function fibonacciSphere(count: number): Vector3Tuple[] {
   return Array.from({ length: count }, (_, index) => {
     const y = 1 - (2 * (index + 0.5)) / count;
     const ringRadius = Math.sqrt(1 - y * y);
