@@ -52,6 +52,8 @@
 }
 
 @layer base {
+  /* Only html paints the page colour. A body background would cover the fixed WebGL layer
+     and other negative z-index glows, which paint between the two. */
   html {
     color-scheme: dark;
     background-color: var(--color-void);
@@ -60,7 +62,6 @@
   }
 
   body {
-    background-color: var(--color-void);
     color: var(--color-text);
     font-family: var(--font-sans);
     font-size: var(--text-body);

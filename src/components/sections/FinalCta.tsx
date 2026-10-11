@@ -13,7 +13,7 @@ export function FinalCta() {
     >
       <div
         aria-hidden
-        className="absolute inset-0 -z-10 bg-[radial-gradient(50%_60%_at_50%_100%,rgb(124_92_255/0.25),transparent)]"
+        className="absolute inset-0 -z-10 bg-[radial-gradient(50%_60%_at_50%_100%,rgb(124_92_255/0.25),transparent)] mix-blend-screen"
       />
       <Heading level={2} id="access-title" className="max-w-4xl">
         {finalCta.title}

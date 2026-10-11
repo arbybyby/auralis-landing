@@ -9,10 +9,12 @@ import { ProblemSolution } from "@/components/sections/ProblemSolution";
 import { Testimonial } from "@/components/sections/Testimonial";
 import { TrustStrip } from "@/components/sections/TrustStrip";
 import { UseCases } from "@/components/sections/UseCases";
+import { SceneLoader } from "@/components/three/SceneLoader";
 
 export default function HomePage() {
   return (
     <>
+      <SceneLoader />
       <Navbar />
       <main id="main" tabIndex={-1} className="outline-none">
         <Hero />

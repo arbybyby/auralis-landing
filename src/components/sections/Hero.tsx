@@ -9,11 +9,11 @@ export function Hero() {
     <section
       id="top"
       aria-labelledby="hero-title"
-      className="relative isolate flex min-h-svh items-center overflow-hidden pt-28 pb-32"
+      className="relative flex min-h-svh items-center overflow-hidden pt-28 pb-32"
     >
       <div
         aria-hidden
-        className="absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_75%_30%,rgb(124_92_255/0.22),transparent),radial-gradient(50%_45%_at_25%_70%,rgb(94_231_255/0.16),transparent)]"
+        className="absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_75%_30%,rgb(124_92_255/0.22),transparent),radial-gradient(50%_45%_at_25%_70%,rgb(94_231_255/0.16),transparent)] mix-blend-screen"
       />
       <Container>
         <Eyebrow>{hero.eyebrow}</Eyebrow>
