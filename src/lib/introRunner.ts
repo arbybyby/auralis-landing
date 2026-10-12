@@ -5,6 +5,7 @@ import type { IntroKeyframe, IntroLayout } from "@/lib/intro";
 import {
   finishIntroState,
   hasReachedIntroMilestone,
+  hasSceneFailed,
   introState,
   markIntroReady,
   setIntroRunning,
@@ -61,6 +62,7 @@ const MILESTONES: readonly IntroMilestone[] = [
   "scene",
   "planet",
   "shaders",
+  "effects",
   "frame",
 ];
 
@@ -139,18 +141,18 @@ function hasPlayedThisSession(): boolean {
 }
 
 /**
- * The full intro needs motion, the 3D scene and a page that starts at the top. Reduced motion, a
- * return visit in the same session, a link to a section, a restored scroll position or a device
- * without the scene all get the plain fade instead.
+ * The full intro needs motion, a device that can play it and a page that starts at the top.
+ * Reduced motion, a return visit in the same session, a link to a section, a restored scroll
+ * position or a device without the scene (or too weak for the full show) all get the plain fade.
  */
-export function chooseIntroMode(hasScene: boolean): IntroMode {
+export function chooseIntroMode(canPlayFullIntro: boolean): IntroMode {
   const reducedMotion = window.matchMedia(
     "(prefers-reduced-motion: reduce)",
   ).matches;
   const startsMidPage = window.scrollY > INTRO.midPageScroll;
   const skipsIntro =
     reducedMotion ||
-    !hasScene ||
+    !canPlayFullIntro ||
     hasPlayedThisSession() ||
     location.hash !== "" ||
     startsMidPage;
@@ -178,12 +180,15 @@ function addKeyframes(
   );
 }
 
-/** The 3D story: spark, launch, swarm and condense. The scene reads every value each frame. */
+/**
+ * The 3D story: spark, launch, swarm, condense and reveal. The scene reads every value each frame.
+ */
 function addSceneTweens(
   timeline: gsap.core.Timeline,
   layout: IntroLayout,
 ): void {
-  const { spark, trail, energy, camera, shockwave, layers, phases } = INTRO;
+  const { spark, trail, energy, camera, flash, shockwave, layers, phases } =
+    INTRO;
 
   // Spark: the point flickers on and pulses twice, its halo builds, and the bloom flares with it.
   addKeyframes(timeline, "spark", spark.ignite, phases.spark, "none");
@@ -272,23 +277,26 @@ function addSceneTweens(
       camera.pulse.start + camera.pulse.rise,
     );
 
-  // Condense: the wide shot settles into the hero position as the planet locks together; the
-  // finished planet sends out a shockwave, and the rest of the scene follows it in.
+  // Condense: the wide shot settles into the hero position as the planet locks together.
+  timeline.to(
+    introState,
+    {
+      wideX: 0,
+      wideY: 0,
+      wideZ: 0,
+      duration: camera.settle.duration,
+      ease: "power3.inOut",
+    },
+    camera.settle.start,
+  );
+
+  // Reveal: the nearly finished planet flashes and sends out a shockwave, and the rest of the
+  // scene follows it in one layer at a time.
+  addKeyframes(timeline, "bloom", flash.keyframes, flash.start, "sine.inOut");
   timeline
     .to(
       introState,
-      {
-        wideX: 0,
-        wideY: 0,
-        wideZ: 0,
-        duration: camera.settle.duration,
-        ease: "power3.inOut",
-      },
-      camera.settle.start,
-    )
-    .to(
-      introState,
-      { shockwave: 1, duration: shockwave.duration, ease: "expo.out" },
+      { shockwave: 1, duration: shockwave.duration, ease: "power3.out" },
       shockwave.start,
     )
     .to(
@@ -498,8 +506,9 @@ function addTextTweens(
 
 /**
  * Plays the opening sequence. A tiny counter waits for real readiness (fonts, canvas, planet,
- * first frame); then one timeline tells the story in phases (spark, launch, swarm, condense and
- * text) while scroll and pointer input stay locked. `onFinish` runs once the page is handed back.
+ * first frame); then one timeline tells the story in phases (spark, launch, swarm, condense,
+ * reveal and text) while scroll and pointer input stay locked. `onFinish` runs once the page is
+ * handed back.
  */
 export function runIntro(
   mode: IntroMode,
@@ -550,6 +559,8 @@ export function runIntro(
 
   /** Shows the finished page with a plain fade: the scene is complete from the first frame. */
   const fadeIn = (duration: number) => {
+    // The reveal has begun: a readiness step arriving now must not start the full intro on top.
+    hasStarted = true;
     active?.kill();
     finishIntroState();
     context.add(() => {
@@ -585,13 +596,14 @@ export function runIntro(
     return { skip, dispose };
   }
 
-  // Scripts arrived so late that the boot script's safety reveal already showed the page.
+  // Nothing waits hidden: the device shows the static planet, or scripts arrived so late that the
+  // boot script's safety reveal already showed the page.
   if (!root.classList.contains(INTRO.pendingClass)) {
     finish();
     return { skip, dispose };
   }
 
-  // Only scripts can tell a restored scroll position or a device without the scene.
+  // Only scripts can tell a restored scroll position or a device that cannot play the full intro.
   if (mode === "quick") {
     fadeIn(INTRO.fade);
     return { skip, dispose };
@@ -667,7 +679,14 @@ export function runIntro(
   };
 
   const onProgress = () => {
-    if (hasStarted || finished) return;
+    if (finished) return;
+    // The scene failed for good: show the finished page now rather than wait out a timer.
+    if (hasSceneFailed()) {
+      if (hasStarted) skip();
+      else fadeIn(INTRO.fade);
+      return;
+    }
+    if (hasStarted) return;
     const ready = MILESTONES.filter(hasReachedIntroMilestone).length;
     if (ready === MILESTONES.length) {
       play();

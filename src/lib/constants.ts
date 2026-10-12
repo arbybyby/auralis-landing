@@ -1,16 +1,30 @@
 import type { CityId } from "@/lib/cities";
 import type { OrbitRing } from "@/lib/orbits";
 
-// Devices below either threshold get the low-power (non-3D) experience.
-export const LOW_POWER_LIMITS = {
-  minCpuCores: 4,
-  minMemoryGb: 4,
-} as const;
-
-// Devices below either threshold still get the 3D scene, with a lighter budget.
-export const HIGH_POWER_LIMITS = {
-  minCpuCores: 8,
-  minMemoryGb: 8,
+/**
+ * How much 3D a device gets (lib/deviceTier.ts); every threshold lives here. "none" means no
+ * usable GPU WebGL2 at all and shows the static planet; "low", "medium" and "high" are budgets
+ * for the live scene (SCENE_TIERS).
+ */
+export const DEVICE_TIER = {
+  /** sessionStorage key: the tier is measured once per session, and the boot script reads it. */
+  storageKey: "auralis-device-tier",
+  /** Below either limit a device gets "low". */
+  lowBelow: { cpuCores: 4, memoryGb: 4 },
+  /** Below either limit it gets "medium" at most. */
+  highFrom: { cpuCores: 8, memoryGb: 8 },
+  /**
+   * Screens with more physical pixels than this (about 4K) get "medium" at most: every pass the
+   * scene draws scales with them.
+   */
+  maxHighTierPixels: 8_300_000,
+  /** Connections on which data matters more than visuals: "low". */
+  lowConnections: ["slow-2g", "2g"],
+  /** Connections that get "medium" at most. */
+  mediumConnections: ["3g"],
+  /** GPU renderer names that mean WebGL runs on the CPU, where the scene would crawl: "none". */
+  softwareRenderers:
+    /swiftshader|llvmpipe|softpipe|software rasterizer|basic render driver/i,
 } as const;
 
 /** Tailwind's `lg` breakpoint (64rem): the desktop scene layout applies from here up. */
@@ -50,9 +64,35 @@ export const BRAND_COLORS = {
   warm: "#ffb86b",
 } as const;
 
+export interface BloomSettings {
+  intensity: number;
+  luminanceThreshold: number;
+  radius: number;
+  /** Mipmap blur levels; fewer levels mean fewer passes and a tighter glow. */
+  levels: number;
+}
+
+/** What one device tier may spend on the scene. */
+export interface SceneTierSettings {
+  dpr: { min: number; max: number };
+  planetPoints: { land: number; ocean: number };
+  starCount: number;
+  /** null leaves postprocessing out entirely, code and all. */
+  bloom: BloomSettings | null;
+  orbitCount: number;
+  satellites: { count: number; trailLength: number };
+  arcCount: number;
+  /** Frames per second the scene is held to; null follows the display. */
+  frameRate: number | null;
+  /** Whether the planet's side facing the pointer lights up. */
+  pointerGlow: boolean;
+  /** Whether the full opening sequence plays; otherwise the page simply fades in. */
+  fullIntro: boolean;
+}
+
 /**
- * Rendering budget per device tier. Low-tier devices get no 3D scene at all, so they have no entry.
- * The pixel-ratio cap is the main cost lever: every full-screen bloom pass scales with it.
+ * Rendering budget per device tier ("none" gets the static planet, so it has no entry). The
+ * pixel-ratio cap is the main cost lever: every full-screen bloom pass scales with it.
  */
 export const SCENE_TIERS = {
   high: {
@@ -63,6 +103,9 @@ export const SCENE_TIERS = {
     orbitCount: 3,
     satellites: { count: 12, trailLength: 8 },
     arcCount: 7,
+    frameRate: null,
+    pointerGlow: true,
+    fullIntro: true,
   },
   medium: {
     dpr: { min: 1, max: 1.25 },
@@ -72,7 +115,73 @@ export const SCENE_TIERS = {
     orbitCount: 2,
     satellites: { count: 8, trailLength: 5 },
     arcCount: 4,
+    frameRate: null,
+    pointerGlow: true,
+    fullIntro: true,
   },
+  // No bloom, no trails, no pointer glow, half the frame rate: the planet still turns and arcs fly.
+  low: {
+    dpr: { min: 1, max: 1 },
+    planetPoints: { land: 8_000, ocean: 1_200 },
+    starCount: 300,
+    bloom: null,
+    orbitCount: 2,
+    satellites: { count: 6, trailLength: 0 },
+    arcCount: 3,
+    frameRate: 30,
+    pointerGlow: false,
+    fullIntro: false,
+  },
+} satisfies Record<"high" | "medium" | "low", SceneTierSettings>;
+
+/**
+ * Runtime quality: once the intro has handed over, the scene steps down for good whenever it
+ * cannot keep up, one step at a time (see lib/sceneQuality.ts for the order of the steps).
+ */
+export const ADAPTIVE_QUALITY = {
+  /** Frame rate a scene without a frame-rate cap should hold. */
+  targetFps: 60,
+  /** Seconds a fresh scene settles (shaders, first frames) before it is judged. */
+  settleSeconds: 2,
+  /** Seconds of frames averaged for each judgement. */
+  sampleSeconds: 2.5,
+  /** Step down when the average frame rate falls below this share of the target. */
+  minRatio: 0.8,
+  /** Seconds after a step before the scene is judged again, so one slow moment costs one step. */
+  cooldownSeconds: 4,
+  /** A frame longer than this (in seconds) is a pause, such as a hidden tab, not slowness. */
+  maxFrameSeconds: 0.5,
+  /** Shares the "fewer particles" step keeps. */
+  planetShare: 0.6,
+  satelliteShare: 0.5,
+  arcShare: 0.5,
+} as const;
+
+/** Holding a scene to a lower frame rate (components/three/FrameLimiter.tsx). */
+export const FRAME_LIMITER = {
+  /** Milliseconds of slack per frame, so a display frame that arrives a touch early still counts. */
+  slackMs: 2,
+} as const;
+
+/** Recovery from a lost WebGL context. */
+export const SCENE_RECOVERY = {
+  /**
+   * Lost contexts the scene survives by starting over on a fresh canvas; one more and the static
+   * planet takes over.
+   */
+  maxRemounts: 1,
+  /** Milliseconds to wait for a lost context to return before giving up on it. */
+  restoreTimeoutMs: 3000,
+} as const;
+
+/** The planet shown when there is no live scene (components/three/StaticPlanetFallback.tsx). */
+export const STATIC_PLANET = {
+  /** Set on <html> (by the boot script or once the scene fails) to show the static planet. */
+  className: "scene-static",
+  /** The hero planet and its atmosphere, rendered from the real scene onto black (square). */
+  poster: "/planet-poster.webp",
+  /** The poster spans this many planet diameters, leaving room for the atmosphere's glow. */
+  posterScale: 1.3,
 } as const;
 
 export const CAMERA = {

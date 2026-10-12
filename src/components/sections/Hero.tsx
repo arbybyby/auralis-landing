@@ -1,3 +1,4 @@
+import { StaticPlanetFallback } from "@/components/three/StaticPlanetFallback";
 import { Accent, Heading } from "@/components/ui/Heading";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
@@ -16,6 +17,7 @@ export function Hero() {
       aria-labelledby="hero-title"
       className="relative flex min-h-svh items-center overflow-hidden pt-28 pb-32"
     >
+      <StaticPlanetFallback />
       <div
         aria-hidden
         data-intro="backdrop"

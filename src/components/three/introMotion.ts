@@ -40,12 +40,11 @@ const END_STEP = 1e-3;
 
 const LAUNCH_SECONDS = INTRO.phases.swarm - INTRO.phases.launch;
 
-/** The last point to lock onto the globe settles at this time; the swarm maths can stop then. */
-export const SWARM_END =
-  INTRO.swarm.lock.start +
-  INTRO.swarm.lock.oceanDelay +
-  INTRO.swarm.lock.oceanSpread +
-  INTRO.swarm.lock.window;
+/** Seconds the swirl builds up and winds down on its own, before the condense phase calms it. */
+const SWIRL_SECONDS = INTRO.phases.condense - INTRO.phases.swarm;
+
+/** The last point locks onto the globe as the condense phase ends; the swarm maths can stop then. */
+export const SWARM_END = INTRO.phases.condense + INTRO.swarm.condense.duration;
 
 /** How far along its path the leader is: it sets off at the launch and speeds up all the way. */
 export function launchProgress(time: number): number {
@@ -58,12 +57,13 @@ export function launchProgress(time: number): number {
 }
 
 /**
- * Angle the swarm has turned through by `time`. It starts at the leader's own speed, speeds up
- * until its peak, then winds down. The planet shader mirrors this.
+ * Angle the swarm has turned through by `time`, up to the condense phase. It starts at the
+ * leader's own speed, speeds up until its peak, then winds down. The leader has dissolved by the
+ * condense; the planet shader mirrors this and calms the swirl from there on.
  */
 export function swirlAngle(time: number, entrySpeed: number): number {
   const { acceleration, peak, decay } = INTRO.swarm;
-  const elapsed = Math.max(time - INTRO.phases.swarm, 0);
+  const elapsed = MathUtils.clamp(time - INTRO.phases.swarm, 0, SWIRL_SECONDS);
   const rising = Math.min(elapsed, peak);
   const falling = Math.max(elapsed - peak, 0);
   const peakSpeed = entrySpeed + acceleration * peak;

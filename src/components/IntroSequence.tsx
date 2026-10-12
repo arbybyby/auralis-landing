@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 
 import { IntroLoader } from "@/components/IntroLoader";
-import { getDeviceTier } from "@/hooks/useDeviceTier";
+import { SCENE_TIERS } from "@/lib/constants";
+import { getDeviceTier } from "@/lib/deviceTier";
 import { chooseIntroMode, runIntro } from "@/lib/introRunner";
 import type { IntroHandle } from "@/lib/introRunner";
 
@@ -16,7 +17,10 @@ export function IntroSequence() {
   useEffect(() => {
     const loader = loaderRef.current;
     if (!loader) return;
-    const mode = chooseIntroMode(getDeviceTier() !== "low");
+    const tier = getDeviceTier();
+    const mode = chooseIntroMode(
+      tier !== "none" && SCENE_TIERS[tier].fullIntro,
+    );
     const handle = runIntro(mode, loader, () => setLoaderMounted(false));
     intro.current = handle;
     return () => handle.dispose();

@@ -114,6 +114,37 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
+/* A few still stars, drawn with gradients alone, for the static planet's sky. */
+@utility starfield {
+  background-image:
+    radial-gradient(1px 1px at 7% 18%, rgb(255 255 255 / 0.7), transparent),
+    radial-gradient(1px 1px at 16% 72%, rgb(255 255 255 / 0.45), transparent),
+    radial-gradient(1.5px 1.5px at 27% 34%, rgb(94 231 255 / 0.6), transparent),
+    radial-gradient(1px 1px at 38% 88%, rgb(255 255 255 / 0.5), transparent),
+    radial-gradient(1px 1px at 46% 9%, rgb(255 255 255 / 0.55), transparent),
+    radial-gradient(1.5px 1.5px at 57% 61%, rgb(124 92 255 / 0.6), transparent),
+    radial-gradient(1px 1px at 64% 24%, rgb(255 255 255 / 0.4), transparent),
+    radial-gradient(1px 1px at 73% 83%, rgb(255 255 255 / 0.6), transparent),
+    radial-gradient(
+      1.5px 1.5px at 82% 12%,
+      rgb(255 255 255 / 0.7),
+      transparent
+    ),
+    radial-gradient(1px 1px at 89% 47%, rgb(94 231 255 / 0.5), transparent),
+    radial-gradient(1px 1px at 94% 76%, rgb(255 255 255 / 0.45), transparent);
+}
+
+/* The static planet stands in for the live scene. The boot script sets the class before first
+   paint on devices without the scene, and so does a scene that fails for good (STATIC_PLANET in
+   lib/constants.ts). */
+[data-static-planet] {
+  display: none;
+}
+
+html.scene-static [data-static-planet] {
+  display: block;
+}
+
 /* Intro states, set on <html> by the boot script (names match INTRO in lib/intro.ts). Without
    JavaScript neither class exists, so the page shows in full and the loader never does. These
    rules sit outside any layer so they win over the utilities on the same elements. */

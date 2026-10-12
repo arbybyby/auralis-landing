@@ -4,6 +4,17 @@ import { PLANET } from "@/lib/constants";
 import { INTRO } from "@/lib/intro";
 
 const { swarm, phases } = INTRO;
+const { condense, lock } = swarm;
+
+/** Seconds the condense clock has run by the end of the phase, slow stretch included. */
+const condenseLength =
+  condense.duration *
+  (1 - (1 - condense.slowRate) * (1 - condense.slowFrom) * 0.5);
+
+/** The swirl's speed as the condense begins, as a share of its peak: it has wound down since. */
+const calmFrom = Math.exp(
+  -swarm.decay * (phases.condense - phases.swarm - swarm.peak),
+);
 
 /**
  * Soft round particles on a sphere. Points shrink with distance like PointsMaterial, run from cyan
@@ -11,8 +22,9 @@ const { swarm, phases } = INTRO;
  * side facing the pointer.
  *
  * During the intro every point lives a whole life first: born on the leader's trail, it rides the
- * trail into a spinning, spiral-armed disk, spirals inwards, and locks onto its place on the globe,
- * land first and ocean last. All of it is a function of time, so the CPU never touches a point.
+ * trail into a spinning, spiral-armed disk, spirals inwards as the swirl calms, and locks onto its
+ * place on the globe, land first and ocean last, the last of them in slow motion. All of it is a
+ * function of time, so the CPU never touches a point.
  */
 export const planetShader = {
   vertex: /* glsl */ `
@@ -24,23 +36,6 @@ export const planetShader = {
     uniform float uGlowStrength;
     uniform vec3 uColorEquator;
     uniform vec3 uColorPole;
-
-    // Intro. uIntro is 1 while the swarm is in flight and 0 once the planet is whole, which skips
-    // all of the maths below. Swarm positions are in the globe's frame, in scene units.
-    uniform float uIntro;
-    uniform float uTime;
-    uniform vec3 uPath[PATH_POINTS];
-    uniform vec3 uDiskU;
-    uniform vec3 uDiskV;
-    uniform vec3 uDiskNormal;
-    // Inner, outer and entry radius of the disk.
-    uniform vec3 uSwarmRadii;
-    uniform float uEntrySpeed;
-    uniform float uSwarmShare;
-    uniform float uEnergy;
-    // Undoes the planet's tilt and spin, taking the globe's frame into this point cloud's own.
-    uniform mat3 uToPlanet;
-    uniform vec3 uColorHot;
 
     attribute float aLand;
     // Stable per-point random in [0, 1), so neighbouring points differ in size, hue and timing.
@@ -58,15 +53,45 @@ export const planetShader = {
 
     // Narrows the lit side to a soft patch rather than a whole hemisphere.
     const float GLOW_FOCUS = 3.0;
+
+    // The intro's swarm, by far the heaviest part of the shader. Devices that never play the full
+    // intro compile without INTRO_SWARM and leave all of it out.
+    #ifdef INTRO_SWARM
+    // uIntro is 1 while the swarm is in flight and 0 once the planet is whole, which skips all of
+    // the maths below. Swarm positions are in the globe's frame, in scene units.
+    uniform float uIntro;
+    uniform float uTime;
+    uniform vec3 uPath[PATH_POINTS];
+    uniform vec3 uDiskU;
+    uniform vec3 uDiskV;
+    uniform vec3 uDiskNormal;
+    // Inner, outer and entry radius of the disk.
+    uniform vec3 uSwarmRadii;
+    uniform float uEntrySpeed;
+    uniform float uSwarmShare;
+    uniform float uEnergy;
+    // Undoes the planet's tilt and spin, taking the globe's frame into this point cloud's own.
+    uniform mat3 uToPlanet;
+    uniform vec3 uColorHot;
+
     const float TAU = 6.2831853;
 
     const float LAUNCH_START = ${float(phases.launch)};
     const float LAUNCH_SECONDS = ${float(phases.swarm - phases.launch)};
     const float LAUNCH_POWER = ${float(INTRO.launchPower)};
     const float SWIRL_START = ${float(phases.swarm)};
+    const float SWIRL_SECONDS = ${float(phases.condense - phases.swarm)};
     const float SWIRL_ACCELERATION = ${float(swarm.acceleration)};
     const float SWIRL_PEAK = ${float(swarm.peak)};
     const float SWIRL_DECAY = ${float(swarm.decay)};
+    const float CALM_FROM = ${float(calmFrom)};
+    const float CALM_POWER = ${float(swarm.calm)};
+
+    const float CONDENSE_START = ${float(phases.condense)};
+    const float CONDENSE_SECONDS = ${float(condense.duration)};
+    const float CONDENSE_LENGTH = ${float(condenseLength)};
+    const float SLOW_FROM = ${float(condense.slowFrom * condense.duration)};
+    const float SLOW_RATE = ${float(condense.slowRate)};
 
     const float BIRTH_START = ${float(swarm.birthStart)};
     const float BIRTH_SPAN = ${float(swarm.birthSpan)};
@@ -82,14 +107,15 @@ export const planetShader = {
     const float THICKNESS = ${float(swarm.thickness * PLANET.radius)};
     const float SPIN_FALLOFF = ${float(swarm.spinFalloff)};
 
-    const float INWARD_START = ${float(swarm.inward.start)};
-    const float INWARD_END = ${float(swarm.inward.end)};
+    const float INWARD_SECONDS = ${float(swarm.inward)};
     const float LOCK_RADIUS = ${float(swarm.lockRadius * PLANET.radius)};
-    const float LOCK_START = ${float(swarm.lock.start)};
-    const float LAND_SPREAD = ${float(swarm.lock.landSpread)};
-    const float OCEAN_DELAY = ${float(swarm.lock.oceanDelay)};
-    const float OCEAN_SPREAD = ${float(swarm.lock.oceanSpread)};
-    const float LOCK_WINDOW = ${float(swarm.lock.window)};
+    const float LAND_FROM = ${float(lock.land.from)};
+    const float LAND_SPAN = ${float(lock.land.to - lock.land.from)};
+    const float OCEAN_FROM = ${float(lock.ocean.from)};
+    const float OCEAN_SPAN = ${float(lock.ocean.to - lock.ocean.from)};
+    const float SETTLE_SECONDS = ${float(lock.settle)};
+    // Points set off to settle over this much of the condense clock, so the last lands as it ends.
+    const float STREAM_SECONDS = CONDENSE_LENGTH - SETTLE_SECONDS;
     const float GATHER_SCALE = ${float(swarm.gatherScale)};
 
     const float NOISE_SCALE = ${float(swarm.noise.scale)};
@@ -121,9 +147,24 @@ export const planetShader = {
       return cross(first, second);
     }
 
-    // Expo-out that reaches exactly 1, so the assembled planet matches the static one.
-    float easeOutExpo(float t) {
-      return t >= 1.0 ? 1.0 : 1.0 - exp2(-10.0 * t);
+    // Reaches exactly 1, so the assembled planet matches the static one.
+    float easeOutCubic(float t) {
+      float left = 1.0 - t;
+      return 1.0 - left * left * left;
+    }
+
+    // Where smoothstep (an ease-in-out) reaches a share: when a point's turn in the stream comes.
+    float inverseSmoothstep(float share) {
+      return 0.5 - sin(asin(1.0 - 2.0 * share) / 3.0);
+    }
+
+    // Seconds on the condense phase's own clock. It keeps real time, then over its last stretch
+    // slows smoothly (along a smoothstep) to SLOW_RATE; this is the integral of that speed.
+    float condenseClock(float time) {
+      float elapsed = clamp(time - CONDENSE_START, 0.0, CONDENSE_SECONDS);
+      float stretch = CONDENSE_SECONDS - SLOW_FROM;
+      float slowing = max(elapsed - SLOW_FROM, 0.0) / stretch;
+      return elapsed - (1.0 - SLOW_RATE) * stretch * slowing * slowing * slowing * (1.0 - 0.5 * slowing);
     }
 
     // The leader's path: Catmull-Rom with tension 0.5 and extrapolated ends, exactly the curve
@@ -148,9 +189,9 @@ export const planetShader = {
       return pow(clamp((time - LAUNCH_START) / LAUNCH_SECONDS, 0.0, 1.0), LAUNCH_POWER);
     }
 
-    // Mirrors swirlAngle() in introMotion.ts.
+    // Mirrors swirlAngle() in introMotion.ts: the swirl up to the condense phase.
     float swirlAngle(float time) {
-      float elapsed = max(time - SWIRL_START, 0.0);
+      float elapsed = clamp(time - SWIRL_START, 0.0, SWIRL_SECONDS);
       float rising = min(elapsed, SWIRL_PEAK);
       float falling = max(elapsed - SWIRL_PEAK, 0.0);
       float peakSpeed = uEntrySpeed + SWIRL_ACCELERATION * SWIRL_PEAK;
@@ -158,16 +199,30 @@ export const planetShader = {
         + peakSpeed / SWIRL_DECAY * (1.0 - exp(-SWIRL_DECAY * falling));
     }
 
+    // The angle the swirl adds through the condense phase, as its speed eases down to nothing.
+    float calmAngle(float clock) {
+      float speed = (uEntrySpeed + SWIRL_ACCELERATION * SWIRL_PEAK) * CALM_FROM;
+      float left = 1.0 - clock / CONDENSE_LENGTH;
+      return speed * CONDENSE_LENGTH / (CALM_POWER + 1.0) * (1.0 - pow(left, CALM_POWER + 1.0));
+    }
+    #endif
+
     void main() {
       vec3 local = position;
       float assembled = 1.0;
       float visible = 1.0;
       float sizeBoost = 1.0;
-      vec3 swarmColor = uColorHot;
+      // Only seen in flight: a finished point takes on the planet's colour in full.
+      vec3 swarmColor = vec3(0.0);
 
+      #ifdef INTRO_SWARM
       if (uIntro > 0.5) {
-        float lockDelay = mix(OCEAN_DELAY + aSeed * OCEAN_SPREAD, aSeed * LAND_SPREAD, aLand);
-        assembled = easeOutExpo(clamp((uTime - LOCK_START - lockDelay) / LOCK_WINDOW, 0.0, 1.0));
+        // Its turn to settle comes at its place in the stream, land first and ocean last. The
+        // stream eases in and out; the point eases out as it lands.
+        float clock = condenseClock(uTime);
+        float slot = mix(OCEAN_FROM + aSeed * OCEAN_SPAN, LAND_FROM + aSeed * LAND_SPAN, aLand);
+        float settle = (clock - STREAM_SECONDS * inverseSmoothstep(slot)) / SETTLE_SECONDS;
+        assembled = easeOutCubic(clamp(settle, 0.0, 1.0));
 
         // Born somewhere on the trail behind the leader, more and more of them as time goes on,
         // then carried along it towards the orbit, gaining speed like the leader did.
@@ -178,15 +233,17 @@ export const planetShader = {
         vec3 onTrail = pathPoint(mix(bornAt, 1.0, flow * flow));
 
         // Its place in the disk: on one of the spiral arms, at a radius that shrinks as the swarm
-        // condenses, swept round by a swirl that turns the inner disk faster.
-        float inward = smoothstep(INWARD_START, INWARD_END, uTime);
+        // condenses, swept round by a swirl that turns the inner disk faster. The swirl builds at
+        // the point's starting radius, then calms at whatever radius it has drawn in to.
+        float inward = smoothstep(0.0, INWARD_SECONDS, clock);
         float startRadius = mix(uSwarmRadii.x, uSwarmRadii.y, pow(aRandom.z, RADIUS_BIAS));
         float radius = mix(startRadius, LOCK_RADIUS, inward);
         float armSlot = aRandom.w * ARMS;
         float angle = floor(armSlot) * TAU / ARMS
           + SPIRAL_TWIST * log(startRadius / uSwarmRadii.x)
           + (fract(armSlot) - 0.5) * ARM_WIDTH
-          + swirlAngle(uTime) * pow(uSwarmRadii.z / radius, SPIN_FALLOFF);
+          + swirlAngle(uTime) * pow(uSwarmRadii.z / startRadius, SPIN_FALLOFF)
+          + calmAngle(clock) * pow(uSwarmRadii.z / radius, SPIN_FALLOFF);
         float lift = (fract(aRandom.z * LIFT_SPREAD) - 0.5) * THICKNESS * (1.0 - inward);
         vec3 inDisk = (uDiskU * cos(angle) + uDiskV * sin(angle)) * radius + uDiskNormal * lift;
         float turbulence = NOISE_AMOUNT * uEnergy * (1.0 - inward);
@@ -204,6 +261,7 @@ export const planetShader = {
         swarmColor = mix(mix(uColorEquator, uColorPole, cool), uColorHot, heat) * (1.0 + ENERGY_GLOW * uEnergy);
         sizeBoost = mix(SWARM_SIZE * (1.0 + NEWBORN_SIZE * heat) * (1.0 + ENERGY_SIZE * uEnergy), 1.0, assembled);
       }
+      #endif
 
       vec4 viewPosition = modelViewMatrix * vec4(local, 1.0);
       gl_Position = projectionMatrix * viewPosition;

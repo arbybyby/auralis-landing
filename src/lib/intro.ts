@@ -1,3 +1,4 @@
+import { DEVICE_TIER, SCENE_TIERS, STATIC_PLANET } from "@/lib/constants";
 import type { Vector3Tuple } from "@/lib/geo";
 
 /** A value to reach and the seconds it takes; a list of them plays back to back as one curve. */
@@ -28,15 +29,23 @@ export interface IntroLayout {
   timeScale: number;
 }
 
-/** Where each phase starts on the timeline, in seconds. Desktop plays it at this speed. */
+/**
+ * Where each phase starts on the timeline, in seconds. Desktop plays it at this speed. The reveal
+ * begins once the planet is about 95% whole: the shockwave goes out, and the rest of the scene
+ * follows it in one layer at a time. The headline waits until the shockwave has passed.
+ */
 const PHASES = {
   spark: 0,
   launch: 0.9,
   swarm: 2.6,
   condense: 4.8,
-  text: 5.2,
-  end: 7.5,
+  reveal: 6.75,
+  text: 7.35,
+  end: 9.9,
 } as const;
+
+/** Seconds the planet takes to gather, from the start of the condense phase until it is whole. */
+const CONDENSE_SECONDS = 3;
 
 /**
  * The one blur size the headline's glows use. Every new blur size the GPU meets costs it a shader
@@ -64,7 +73,7 @@ export const INTRO = {
   /** Longest wait for the scene; after this the intro is dropped and the page simply fades in. */
   readyTimeoutMs: 6000,
   /** Longest the sequence may run once it has started; past this it jumps to the end. */
-  sequenceTimeoutMs: 9000,
+  sequenceTimeoutMs: 12000,
   /** A load that starts further down than this (in px) is a restored scroll position. */
   midPageScroll: 4,
   /** Seconds for the loader counter to catch up with each readiness step. */
@@ -98,7 +107,7 @@ export const INTRO = {
       ],
       swarm: { inner: 1.15, outer: 2, entry: 1.8, entryAngle: 1.4 },
       swarmShare: 0.5,
-      timeScale: PHASES.end / 5.5,
+      timeScale: PHASES.end / 7,
     },
   } satisfies Record<"desktop" | "mobile", IntroLayout>,
 
@@ -182,16 +191,29 @@ export const INTRO = {
     acceleration: 1.6,
     peak: 2,
     decay: 2.2,
-    /** The streams spiral in to just above the surface (`lockRadius`, in planet radii). */
-    inward: { start: PHASES.condense, end: 5.3 },
+    /**
+     * The condense phase keeps its own clock, which everything in it runs on. It keeps real time
+     * until `slowFrom` (a share of the phase), then slows smoothly to `slowRate` of real speed, so
+     * the last points drift onto the globe in slow motion.
+     */
+    condense: { duration: CONDENSE_SECONDS, slowFrom: 0.65, slowRate: 0.5 },
+    /** Through the condense the swirl's speed eases down to nothing, as (1 - progress)^calm. */
+    calm: 3,
+    /**
+     * Seconds on that clock the streams take to spiral in to just above the surface
+     * (`lockRadius`, in planet radii).
+     */
+    inward: 1.4,
     lockRadius: 1.06,
-    /** Each point locks onto the globe at its own moment: land first, ocean last. */
+    /**
+     * Each point locks onto the globe at its own moment, land first and ocean last: each takes its
+     * range of the stream, which eases in and out, so arrivals start as a trickle, swell and taper
+     * off. A point then settles over `settle` seconds on the clock, easing out as it lands.
+     */
     lock: {
-      start: 4.85,
-      landSpread: 0.35,
-      oceanDelay: 0.3,
-      oceanSpread: 0.4,
-      window: 0.45,
+      land: { from: 0, to: 0.8 },
+      ocean: { from: 0.8, to: 1 },
+      settle: 0.65,
     },
     /** Curl noise: frequency per scene unit, drift speed, and strength in planet radii. */
     noise: { scale: 0.45, speed: 0.4, amount: 0.06 },
@@ -215,7 +237,7 @@ export const INTRO = {
   /** Swarm energy: drives the curl noise, the size and the glow of the points in flight. */
   energy: { start: PHASES.swarm, rise: 1.9, fall: 0.9 },
 
-  /** Bloom multiplier from the start of the timeline: spark pulses, swarm build-up, shockwave flash. */
+  /** Bloom multiplier from the start of the timeline: spark pulses, then the swarm's build-up. */
   bloom: [
     { to: 1.6, duration: 0.2 },
     { to: 1.2, duration: 0.14 },
@@ -226,9 +248,16 @@ export const INTRO = {
     { to: 1.5, duration: 1.7 },
     { to: 2.2, duration: 1.9 },
     { to: 1.2, duration: 1.25 },
-    { to: 3, duration: 0.08 },
-    { to: 1, duration: 0.8 },
   ] satisfies IntroKeyframe[],
+
+  /** A short bloom flash as the reveal begins, back to the resting bloom as the shockwave fades. */
+  flash: {
+    start: PHASES.reveal,
+    keyframes: [
+      { to: 2.5, duration: 0.12 },
+      { to: 1, duration: 0.9 },
+    ] satisfies IntroKeyframe[],
+  },
 
   camera: {
     /** Drift after the leader during the launch, then back. */
@@ -247,27 +276,35 @@ export const INTRO = {
     pulse: { start: 4.35, rise: 0.15, fall: 0.45, scale: 1.04 },
   },
 
-  /** A ring that rushes out from the finished planet, in planet radii. */
+  /** A soft ring that spreads out from the nearly finished planet, in planet radii. */
   shockwave: {
-    start: 5.75,
-    duration: 0.85,
+    start: PHASES.reveal,
+    duration: 1.2,
     from: 1,
     to: 3.2,
     /** Ring thickness, as a share of the sprite's half-width. */
-    width: 0.035,
+    width: 0.045,
+    /** Brightness as the ring sets off; it fades as it spreads. */
+    strength: 0.7,
     color: "#a9f3ff",
   },
 
-  /** The scene's other layers come in after the shockwave. */
+  /** The scene's other layers follow the shockwave in, one at a time. */
   layers: {
-    markers: { start: 5.85, duration: 0.45 },
-    atmosphere: { start: 5.8, flare: 1.7, flareDuration: 0.35, settle: 0.6 },
-    stars: { start: 5.9, duration: 1.1 },
+    atmosphere: {
+      start: PHASES.reveal + 0.4,
+      flare: 1.4,
+      flareDuration: 0.45,
+      settle: 0.55,
+    },
+    stars: { start: PHASES.reveal + 0.8, duration: 1.2 },
     /** Orbit rings draw themselves in along their circumference. */
-    orbits: { start: 6, duration: 1 },
-    satellites: { start: 6.35, duration: 0.5 },
+    orbits: { start: PHASES.reveal + 1.2, duration: 1.2 },
+    /** The cities light up just before the first arcs fly between them. */
+    markers: { start: PHASES.reveal + 1.5, duration: 0.7 },
+    satellites: { start: PHASES.reveal + 1.8, duration: 0.6 },
     /** The first data arcs launch here, one after another. */
-    arcs: { start: 6.5, stagger: 0.25 },
+    arcs: { start: PHASES.reveal + 2.2, stagger: 0.3 },
   },
 
   /** Orbit stroke-reveal: soft edge as a share of the ring, and extra brightness at its head. */
@@ -275,11 +312,11 @@ export const INTRO = {
 
   text: {
     /** The hero's glow and the scrim behind the copy fade in before the headline lands. */
-    backdrop: { start: 4.6, duration: 0.8 },
+    backdrop: { start: 7.05, duration: 1 },
     /** Headline letters rise out of their line's mask, turning upright and coming into focus. */
-    lead: { start: PHASES.text, duration: 1, stagger: 0.035 },
+    lead: { start: PHASES.text, duration: 1.1, stagger: 0.045 },
     /** "think." arrives last. */
-    finale: { start: 6, duration: 0.9, stagger: 0.05 },
+    finale: { start: 8.2, duration: 1, stagger: 0.06 },
     /** Letters start below the mask (share of their height) and tilted (degrees). */
     rise: 130,
     rotation: 9,
@@ -302,27 +339,27 @@ export const INTRO = {
      * reaches above and below the eyebrow so the line under it stays inside.
      */
     eyebrow: {
-      start: 6.35,
-      duration: 0.5,
+      start: 8.6,
+      duration: 0.6,
       lineFade: 0.35,
       clipFrom: "inset(-50% 100% -150% 0%)",
       clipTo: "inset(-50% 0% -150% 0%)",
     },
     /** Subtitle words fade up (share of their height) one after another. */
     subtitle: {
-      start: 6.55,
+      start: 8.85,
       duration: 0.6,
-      stagger: 0.017,
+      stagger: 0.02,
       rise: 60,
     },
     /** Buttons scale in; the primary one pulses a glow. */
     buttons: {
-      start: 6.85,
+      start: 9.15,
       duration: 0.55,
-      stagger: 0.08,
+      stagger: 0.1,
       scale: 0.88,
       glow: {
-        start: 7,
+        start: 9.4,
         rise: 0.2,
         fall: 0.3,
         shadow: "0 0 2.5rem 0.25rem rgba(94, 231, 255, 0.55)",
@@ -330,8 +367,8 @@ export const INTRO = {
       },
     },
     /** The navigation slides down into its bar. */
-    nav: { start: 6.95, duration: 0.5 },
-    hints: { start: 7.1, duration: 0.4 },
+    nav: { start: 9.25, duration: 0.5 },
+    hints: { start: 9.45, duration: 0.45 },
   },
 
   loader: {
@@ -339,20 +376,78 @@ export const INTRO = {
     finish: 0.3,
     hide: { start: 0.35, duration: 0.3 },
     /** The skip control stays until the story is nearly told. */
-    skipHide: { start: 6.7, duration: 0.3 },
+    skipHide: { start: 9.1, duration: 0.3 },
   },
 } as const;
 
+/** Tiers whose scene skips the full intro and only fades in. */
+const QUICK_TIERS = Object.entries(SCENE_TIERS)
+  .filter(([, settings]) => !settings.fullIntro)
+  .map(([tier]) => tier);
+
 /**
- * Runs at the top of the page while the HTML is parsed, before first paint. When the full intro
- * will not play, it starts the plain CSS fade straight away. Otherwise it hides the hero for the
- * intro, and reveals everything on its own if the app's scripts never take over.
+ * Runs at the top of the page while the HTML is parsed, before first paint. A device that cannot
+ * run the scene shows the static planet and the page at once, with no loader and no intro; the
+ * planet's picture, the largest thing on screen, starts loading straight away rather than once the
+ * styles are applied. When the full intro will not play, it starts the plain CSS fade at once.
+ * Otherwise it hides the hero for the intro, and reveals everything on its own if the app's scripts
+ * never take over.
+ *
+ * The first load of a session has no stored tier yet, so the script repeats the cheap checks of
+ * lib/deviceTier.ts: WebGL2 on a real GPU (handing the test context straight back, as browsers
+ * allow only a few) and the signs of a "low" device. The app measures the rest once it runs.
  */
 export const INTRO_BOOT_SCRIPT = `(function () {
   var root = document.documentElement;
+  var tier = null;
+  try {
+    tier = sessionStorage.getItem("${DEVICE_TIER.storageKey}");
+  } catch (error) {}
+  if (!tier) {
+    try {
+      var gl = document
+        .createElement("canvas")
+        .getContext("webgl2", { failIfMajorPerformanceCaveat: true });
+      var info = gl && gl.getExtension("WEBGL_debug_renderer_info");
+      var renderer = gl
+        ? String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER))
+        : "";
+      var lose = gl && gl.getExtension("WEBGL_lose_context");
+      if (lose) lose.loseContext();
+      if (!gl || ${DEVICE_TIER.softwareRenderers}.test(renderer)) tier = "none";
+    } catch (error) {
+      tier = "none";
+    }
+    if (tier === "none") {
+      try {
+        sessionStorage.setItem("${DEVICE_TIER.storageKey}", tier);
+      } catch (error) {}
+    }
+  }
+  if (tier === "none") {
+    root.classList.add("${STATIC_PLANET.className}");
+    var poster = document.createElement("link");
+    poster.rel = "preload";
+    poster.as = "image";
+    poster.href = "${STATIC_PLANET.poster}";
+    poster.fetchPriority = "high";
+    document.head.appendChild(poster);
+    return;
+  }
   var quick;
   try {
+    var connection = navigator.connection || {};
+    if (
+      !tier &&
+      (connection.saveData ||
+        ${JSON.stringify(DEVICE_TIER.lowConnections)}.indexOf(connection.effectiveType) !== -1 ||
+        navigator.hardwareConcurrency < ${DEVICE_TIER.lowBelow.cpuCores} ||
+        navigator.deviceMemory < ${DEVICE_TIER.lowBelow.memoryGb})
+    ) {
+      tier = "low";
+    }
     quick =
+      ${JSON.stringify(QUICK_TIERS)}.indexOf(tier) !== -1 ||
       sessionStorage.getItem("${INTRO.storageKey}") ||
       location.hash ||
       matchMedia("(prefers-reduced-motion: reduce)").matches;

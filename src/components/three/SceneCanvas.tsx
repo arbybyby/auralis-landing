@@ -2,15 +2,30 @@
 
 import { Canvas } from "@react-three/fiber";
 import type { RootState } from "@react-three/fiber";
-import { lazy, Suspense, useEffect, useRef, useSyncExternalStore } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 
-import { Effects } from "@/components/three/Effects";
+import { FrameLimiter } from "@/components/three/FrameLimiter";
 import { Scene } from "@/components/three/Scene";
-import type { DeviceTier } from "@/hooks/useDeviceTier";
 import { usePageVisible } from "@/hooks/usePageVisible";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useSceneQuality } from "@/hooks/useSceneQuality";
 import { CAMERA, SCENE_TIERS } from "@/lib/constants";
+import type { DeviceTier } from "@/lib/deviceTier";
 import { markIntroReady } from "@/lib/introStore";
+import {
+  getSceneHealth,
+  getServerSceneHealth,
+  reportContextLost,
+  reportContextRestored,
+  subscribeSceneHealth,
+} from "@/lib/sceneHealth";
 import {
   getLayerOpacity,
   isLayerVisible,
@@ -18,7 +33,7 @@ import {
 } from "@/lib/sceneStore";
 
 interface SceneCanvasProps {
-  tier: Exclude<DeviceTier, "low">;
+  tier: Exclude<DeviceTier, "none">;
 }
 
 // Everything drawn is a soft-edged sprite or halo, so hardware antialiasing would only cost fill rate.
@@ -33,6 +48,13 @@ const CAMERA_OPTIONS = {
   position: [0, 0, CAMERA.distance],
 } as const;
 
+// Postprocessing loads only for tiers that bloom, in its own chunk, after the scene itself.
+const Effects = lazy(() =>
+  import("@/components/three/Effects").then((mod) => ({
+    default: mod.Effects,
+  })),
+);
+
 // A static import would keep stats.js in the production bundle even when never rendered.
 // Inside this branch the import is dropped from production builds entirely.
 const DevStats =
@@ -44,7 +66,13 @@ const DevStats =
       )
     : null;
 
-function markSceneReady(): void {
+function onContextLost(event: Event): void {
+  // Without this the browser never tries to bring the context back.
+  event.preventDefault();
+  reportContextLost();
+}
+
+function handleCreated(): void {
   markIntroReady("scene");
 }
 
@@ -54,24 +82,64 @@ function layerVisibleOnServer(): boolean {
 }
 
 function chooseFrameloop(
-  isVisible: boolean,
+  isRunning: boolean,
   prefersReducedMotion: boolean,
+  frameRate: number | null,
 ): RootState["frameloop"] {
-  // Hidden tab, or a scroll state that fades the layer out: stop drawing until it comes back.
-  if (!isVisible) return "never";
-  // A still scene only needs a new frame when something changes, such as a resize.
-  return prefersReducedMotion ? "demand" : "always";
+  // Hidden tab, a scroll state that fades the layer out, or a lost context: stop drawing.
+  if (!isRunning) return "never";
+  // A still scene, or one held to a lower frame rate, draws only when asked to.
+  return prefersReducedMotion || frameRate !== null ? "demand" : "always";
 }
 
 export function SceneCanvas({ tier }: SceneCanvasProps) {
   const isPageVisible = usePageVisible();
   const prefersReducedMotion = useReducedMotion();
   const settings = SCENE_TIERS[tier];
+  const { ladder, quality } = useSceneQuality(settings);
   const isLayerShown = useSyncExternalStore(
     subscribeSceneTarget,
     isLayerVisible,
     layerVisibleOnServer,
   );
+  const { contextLost } = useSyncExternalStore(
+    subscribeSceneHealth,
+    getSceneHealth,
+    getServerSceneHealth,
+  );
+  const isRunning = isPageVisible && isLayerShown && !contextLost;
+
+  // Listens on the canvas element itself, and stops before the canvas unmounts: tearing the
+  // renderer down loses its context on purpose, and that must not count as a failure.
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let wasRestored = false;
+    const onContextRestored = () => {
+      wasRestored = true;
+      reportContextRestored();
+    };
+    canvas.addEventListener("webglcontextlost", onContextLost);
+    canvas.addEventListener("webglcontextrestored", onContextRestored);
+    return () => {
+      canvas.removeEventListener("webglcontextlost", onContextLost);
+      canvas.removeEventListener("webglcontextrestored", onContextRestored);
+      // A restored context is thrown away for a fresh canvas. Losing it again first makes the
+      // teardown's deletes of GPU objects from before the loss silent; otherwise each one warns.
+      if (wasRestored) {
+        canvas
+          .getContext("webgl2")
+          ?.getExtension("WEBGL_lose_context")
+          ?.loseContext();
+      }
+    };
+  }, []);
+
+  // Without bloom there is nothing for the intro to wait for on that count.
+  useEffect(() => {
+    if (!quality.bloom) markIntroReady("effects");
+  }, [quality.bloom]);
 
   // Written straight to the element, so fading with the scroll never re-renders React and keeps
   // working while the canvas itself is paused.
@@ -94,19 +162,33 @@ export function SceneCanvas({ tier }: SceneCanvasProps) {
       className="pointer-events-none fixed inset-0 -z-20"
     >
       <Canvas
-        dpr={[settings.dpr.min, settings.dpr.max]}
+        ref={canvasRef}
+        dpr={[quality.dpr.min, quality.dpr.max]}
         frameloop={chooseFrameloop(
-          isPageVisible && isLayerShown,
+          isRunning,
           prefersReducedMotion,
+          settings.frameRate,
         )}
         gl={GL_OPTIONS}
         camera={CAMERA_OPTIONS}
-        onCreated={markSceneReady}
+        onCreated={handleCreated}
         // The canvas wrapper sets pointer-events itself, so the parent's class alone is not enough.
         style={{ pointerEvents: "none" }}
       >
-        <Scene settings={settings} animated={!prefersReducedMotion} />
-        <Effects bloom={settings.bloom} />
+        <Scene
+          settings={settings}
+          quality={quality}
+          ladder={ladder}
+          animated={!prefersReducedMotion}
+        />
+        {settings.frameRate !== null && !prefersReducedMotion && (
+          <FrameLimiter fps={settings.frameRate} />
+        )}
+        {quality.bloom && (
+          <Suspense fallback={null}>
+            <Effects bloom={quality.bloom} />
+          </Suspense>
+        )}
         {DevStats && (
           <Suspense fallback={null}>
             <DevStats />

@@ -26,18 +26,27 @@ import { sceneCurrent, sceneMotion } from "@/lib/sceneStore";
 interface PlanetProps {
   /** Target particle counts; lower device tiers pass a smaller budget. */
   pointCounts: PlanetPointCounts;
+  /** Share of the points that are drawn; a device that cannot keep up draws fewer. */
+  share: number;
   /** Spin around the tilted axis, in radians per second. 0 holds a still frame. */
   rotationSpeed: number;
   /** Smoothed pointer input; the side of the planet facing the pointer brightens slightly. */
   pointer: RefObject<ParallaxInput>;
+  /** Whether that side lights up at all. */
+  pointerGlow: boolean;
   /** The intro's path and swarm for the current layout; the points fly it before they settle. */
   introPath: IntroPath;
+  /** False leaves the swarm out of the shader, for devices that never play the full intro. */
+  introSwarm: boolean;
   /** Surface features, such as city markers and arcs, that turn with the planet. */
   children?: ReactNode;
 }
 
 // Reused every frame for the pointer glow, so the frame loop allocates nothing.
 const centreOnScreen = new Vector3();
+
+// Without the swarm's define the shader compiles without its heaviest part.
+const STILL_DEFINES = {};
 
 function createGeometry(
   mask: LandMask,
@@ -74,9 +83,12 @@ function createUniforms() {
 
 export function Planet({
   pointCounts,
+  share,
   rotationSpeed,
   pointer,
+  pointerGlow,
   introPath,
+  introSwarm,
   children,
 }: PlanetProps) {
   const landMask = use(loadLandMask());
@@ -89,6 +101,11 @@ export function Planet({
     [landMask, pointCounts],
   );
   useEffect(() => () => geometry.dispose(), [geometry]);
+  // The points are stored shuffled, so drawing only the first share of them thins the planet evenly.
+  useEffect(() => {
+    const count = geometry.getAttribute("position").count;
+    geometry.setDrawRange(0, Math.round(count * share));
+  }, [geometry, share]);
 
   const swarmUniforms = useIntroSwarm(materialRef, spinRef, introPath);
   const uniforms = useMemo(
@@ -119,6 +136,7 @@ export function Planet({
     material.uniforms.uPointScale.value =
       (state.size.height * state.viewport.dpr) / 2;
     material.uniforms.uSceneOpacity.value = sceneCurrent.planet;
+    if (!pointerGlow) return;
 
     // Light the side facing the pointer: the direction runs from the planet's centre on screen
     // towards the pointer, in view space, leaning towards the viewer.
@@ -146,7 +164,7 @@ export function Planet({
             vertexShader={planetShader.vertex}
             fragmentShader={planetShader.fragment}
             uniforms={uniforms}
-            defines={SWARM_DEFINES}
+            defines={introSwarm ? SWARM_DEFINES : STILL_DEFINES}
             transparent
             depthWrite={false}
             blending={AdditiveBlending}

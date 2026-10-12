@@ -31,6 +31,6 @@ export function useInteractionMode(): InteractionMode {
   const prefersReducedMotion = useReducedMotion();
   const tier = useDeviceTier();
 
-  // Reduced motion turns interaction off, and low-power devices have no 3D scene to steer.
-  return prefersReducedMotion || tier === "low" ? "none" : input;
+  // Reduced motion turns interaction off, and without the live scene there is nothing to steer.
+  return prefersReducedMotion || tier === "none" ? "none" : input;
 }

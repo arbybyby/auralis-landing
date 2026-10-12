@@ -8,7 +8,7 @@ import { PLANET } from "@/lib/constants";
 import { INTRO } from "@/lib/intro";
 import { introState } from "@/lib/introStore";
 
-const { from, to, color } = INTRO.shockwave;
+const { from, to, strength, color } = INTRO.shockwave;
 // The sprite just holds the ring at its widest; the shader draws it at any smaller radius.
 const SIZE = 2 * to * PLANET.radius;
 const START_RADIUS = from / to;
@@ -21,7 +21,7 @@ function createUniforms() {
   };
 }
 
-/** The ring that rushes out from the planet the moment it is complete. */
+/** The soft ring that spreads out from the planet as it comes together. */
 export function IntroShockwave() {
   const meshRef = useRef<Mesh>(null);
   const materialRef = useRef<ShaderMaterial>(null);
@@ -36,7 +36,9 @@ export function IntroShockwave() {
     mesh.visible = introState.warmUp || isRunning;
     if (!mesh.visible) return;
     material.uniforms.uRadius.value = MathUtils.lerp(START_RADIUS, 1, progress);
-    material.uniforms.uOpacity.value = isRunning ? 1 - progress : 0;
+    material.uniforms.uOpacity.value = isRunning
+      ? strength * (1 - progress)
+      : 0;
   });
 
   return (

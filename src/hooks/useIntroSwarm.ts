@@ -32,8 +32,8 @@ function createSwarmUniforms() {
   };
 }
 
-/** The shader defines the swarm needs: how many control points its path has. */
-export const SWARM_DEFINES = { PATH_POINTS };
+/** The shader defines the swarm needs: the switch that compiles it in, and its path's length. */
+export const SWARM_DEFINES = { INTRO_SWARM: true, PATH_POINTS };
 
 /**
  * Flies the planet's points through the intro. Returns the uniforms to merge into the planet's

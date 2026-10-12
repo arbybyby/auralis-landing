@@ -21,6 +21,9 @@ interface SatellitesProps {
   count: number;
   /** Trail samples behind each satellite; 0 draws heads only. */
   trailLength: number;
+  /** Share of the satellites drawn, and whether they draw trails; both drop on a slow device. */
+  share: number;
+  trails: boolean;
   /** Satellites are shared out over this many of the configured rings. */
   orbitCount: number;
   /** False freezes every satellite in place. */
@@ -114,14 +117,20 @@ function createUniforms() {
 export function Satellites({
   count,
   trailLength,
+  share,
+  trails,
   orbitCount,
   animated,
 }: SatellitesProps) {
   const materialRef = useRef<ShaderMaterial>(null);
 
+  // Satellites come from a seeded sequence, so a smaller count keeps the first ones exactly where
+  // they were; at a few dozen points, building the geometry again costs nothing.
+  const shownCount = Math.max(1, Math.round(count * share));
+  const shownTrail = trails ? trailLength : 0;
   const geometry = useMemo(
-    () => createGeometry(count, trailLength, orbitCount),
-    [count, trailLength, orbitCount],
+    () => createGeometry(shownCount, shownTrail, orbitCount),
+    [shownCount, shownTrail, orbitCount],
   );
   useEffect(() => () => geometry.dispose(), [geometry]);
 

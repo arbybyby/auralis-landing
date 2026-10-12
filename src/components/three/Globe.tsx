@@ -19,12 +19,21 @@ import type { PlanetPointCounts } from "@/lib/planetPoints";
 
 interface GlobeProps {
   pointCounts: PlanetPointCounts;
+  /** Share of the planet's points that are drawn. */
+  planetShare: number;
+  /** Whether the side facing the pointer lights up. */
+  pointerGlow: boolean;
   rotationSpeed: number;
   orbitCount: number;
   satellites: { count: number; trailLength: number };
+  /** Share of the satellites that are drawn, and whether they draw their trails. */
+  satelliteShare: number;
+  trails: boolean;
   arcCount: number;
   /** False holds orbits, satellites and arcs in a still composition. */
   animated: boolean;
+  /** Whether the intro's spark, trail, shockwave and swarm are built at all. */
+  introEffects: boolean;
   /** Smoothed pointer or tilt input the globe turns towards. */
   parallax: RefObject<ParallaxInput>;
 }
@@ -37,11 +46,16 @@ interface GlobeProps {
  */
 export function Globe({
   pointCounts,
+  planetShare,
+  pointerGlow,
   rotationSpeed,
   orbitCount,
   satellites,
+  satelliteShare,
+  trails,
   arcCount,
   animated,
+  introEffects,
   parallax,
 }: GlobeProps) {
   const introPath = getIntroPath(useIsDesktop() ? "desktop" : "mobile");
@@ -50,15 +64,22 @@ export function Globe({
 
   return (
     <ScrollGroup>
-      <IntroTrail path={introPath} />
-      <IntroSpark path={introPath} />
-      <IntroShockwave />
+      {introEffects && (
+        <>
+          <IntroTrail path={introPath} />
+          <IntroSpark path={introPath} />
+          <IntroShockwave />
+        </>
+      )}
       <ParallaxGroup input={parallax}>
         <Planet
           pointCounts={pointCounts}
+          share={planetShare}
           rotationSpeed={rotationSpeed}
           pointer={parallax}
+          pointerGlow={pointerGlow}
           introPath={introPath}
+          introSwarm={introEffects}
         >
           <DataArcs count={arcCount} animated={animated} />
         </Planet>
@@ -69,6 +90,8 @@ export function Globe({
           <Satellites
             count={satellites.count}
             trailLength={satellites.trailLength}
+            share={satelliteShare}
+            trails={trails}
             orbitCount={orbitCount}
             animated={animated}
           />

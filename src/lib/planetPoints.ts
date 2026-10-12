@@ -24,6 +24,9 @@ const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 /**
  * Spreads land and ocean points evenly over a sphere. Each gets its own Fibonacci sphere, sized
  * by the land fraction so the points that pass the mask come close to the requested count.
+ *
+ * The points are stored in a shuffled order, so any leading share of them is an even sample of
+ * the whole planet: drawing fewer of them thins the globe out instead of cutting part of it away.
  */
 export function createPlanetPoints(
   mask: LandMask,
@@ -50,18 +53,30 @@ export function createPlanetPoints(
   const randoms = new Float32Array(points.length * 4);
   const random = createRandom(seed);
   const extraRandom = createRandom(seed + 1);
+  const slots = shuffledIndices(points.length, createRandom(seed + 2));
 
   points.forEach(([x, y, z], index) => {
-    positions.set([x * radius, y * radius, z * radius], index * 3);
-    land[index] = index < landPoints.length ? 1 : 0;
-    seeds[index] = random();
+    const slot = slots[index];
+    positions.set([x * radius, y * radius, z * radius], slot * 3);
+    land[slot] = index < landPoints.length ? 1 : 0;
+    seeds[slot] = random();
     randoms.set(
       [extraRandom(), extraRandom(), extraRandom(), extraRandom()],
-      index * 4,
+      slot * 4,
     );
   });
 
   return { positions, land, seeds, randoms };
+}
+
+/** The numbers 0 to count - 1 in a random order (a Fisher-Yates shuffle). */
+function shuffledIndices(count: number, random: () => number): Uint32Array {
+  const indices = Uint32Array.from({ length: count }, (_, index) => index);
+  for (let last = count - 1; last > 0; last--) {
+    const other = Math.floor(random() * (last + 1));
+    [indices[last], indices[other]] = [indices[other], indices[last]];
+  }
+  return indices;
 }
 
 /** Unit vectors spread evenly over a sphere along a golden-angle spiral. */

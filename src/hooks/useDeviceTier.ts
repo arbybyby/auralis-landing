@@ -1,56 +1,18 @@
 import { useSyncExternalStore } from "react";
 
-import { HIGH_POWER_LIMITS, LOW_POWER_LIMITS } from "@/lib/constants";
+import { getDeviceTier, subscribeDeviceTier } from "@/lib/deviceTier";
+import type { DeviceTier } from "@/lib/deviceTier";
 
-export type DeviceTier = "high" | "medium" | "low";
-
-interface HardwareLimits {
-  minCpuCores: number;
-  minMemoryGb: number;
-}
-
-// deviceMemory is Chromium-only, so it is missing from the standard DOM types.
-interface NavigatorWithMemory extends Navigator {
-  deviceMemory?: number;
-}
-
-let cachedTier: DeviceTier | undefined;
-
-function supportsWebGL2(): boolean {
-  return document.createElement("canvas").getContext("webgl2") !== null;
-}
-
-function isBelow(limits: HardwareLimits): boolean {
-  const { hardwareConcurrency, deviceMemory } =
-    navigator as NavigatorWithMemory;
-  const isWeakCpu = hardwareConcurrency < limits.minCpuCores;
-  const isLowMemory =
-    deviceMemory !== undefined && deviceMemory < limits.minMemoryGb;
-
-  return isWeakCpu || isLowMemory;
-}
-
-function detectTier(): DeviceTier {
-  if (!supportsWebGL2() || isBelow(LOW_POWER_LIMITS)) return "low";
-  return isBelow(HIGH_POWER_LIMITS) ? "medium" : "high";
-}
-
-// Hardware does not change during a session, so there is nothing to subscribe to.
-function subscribe(): () => void {
-  return () => {};
-}
-
-/** The device tier, for browser code outside React rendering (the hook is for components). */
-export function getDeviceTier(): DeviceTier {
-  cachedTier ??= detectTier();
-  return cachedTier;
-}
-
-// Render the low-power fallback on the server; capable devices upgrade after hydration.
+// The server cannot know the device, so it renders no scene; the browser decides after hydration.
 function getServerSnapshot(): DeviceTier {
-  return "low";
+  return "none";
 }
 
+/** The device tier for components (see lib/deviceTier.ts). */
 export function useDeviceTier(): DeviceTier {
-  return useSyncExternalStore(subscribe, getDeviceTier, getServerSnapshot);
+  return useSyncExternalStore(
+    subscribeDeviceTier,
+    getDeviceTier,
+    getServerSnapshot,
+  );
 }

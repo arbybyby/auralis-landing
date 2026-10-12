@@ -99,12 +99,14 @@ export function finishIntroState(): void {
 }
 
 /** What the loader waits for before the intro plays. */
-export type IntroMilestone = "fonts" | "scene" | "planet" | "shaders" | "frame";
+export type IntroMilestone =
+  "fonts" | "scene" | "planet" | "shaders" | "effects" | "frame";
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
 const reached = new Set<IntroMilestone>();
 let running = false;
+let sceneFailed = false;
 
 function notify(): void {
   listeners.forEach((listener) => listener());
@@ -131,7 +133,18 @@ export function hasReachedIntroMilestone(milestone: IntroMilestone): boolean {
   return reached.has(milestone);
 }
 
-/** Called whenever the intro starts or stops, or a milestone is reached. */
+/** The live scene is gone for good: the intro hands the page over instead of waiting for it. */
+export function reportSceneFailed(): void {
+  if (sceneFailed) return;
+  sceneFailed = true;
+  notify();
+}
+
+export function hasSceneFailed(): boolean {
+  return sceneFailed;
+}
+
+/** Called whenever the intro starts or stops, a milestone is reached, or the scene fails. */
 export function subscribeIntro(listener: Listener): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
