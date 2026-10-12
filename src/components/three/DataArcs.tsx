@@ -15,6 +15,8 @@ import { CityMarkers } from "@/components/three/CityMarkers";
 import { CITY_DIRECTIONS, cityAngle, cityIndex, pickRoute } from "@/lib/cities";
 import type { Route } from "@/lib/cities";
 import { BRAND_COLORS, DATA_ARCS, PLANET } from "@/lib/constants";
+import { INTRO } from "@/lib/intro";
+import { introState } from "@/lib/introStore";
 import { randomBetween } from "@/lib/random";
 import { sceneCurrent } from "@/lib/sceneStore";
 
@@ -110,6 +112,13 @@ function createWaitingSlot(): ArcSlot {
   };
 }
 
+/** Lines a slot up to launch its next arc after `delay` seconds. */
+function queueLaunch(slot: ArcSlot, delay: number): void {
+  slot.phase = "waiting";
+  slot.elapsed = 0;
+  slot.duration = delay;
+}
+
 /** Moves one arc through its cycle. Returns the city it just landed on, or -1. */
 function advanceSlot(
   slot: ArcSlot,
@@ -185,13 +194,24 @@ export function DataArcs({ count, animated }: DataArcsProps) {
     slots.current = animated ? arcUniforms.map(() => createWaitingSlot()) : [];
   }, [arcUniforms, animated]);
 
+  // The intro holds the arcs back; once it lets them go, the first ones launch one after another.
+  const wasHeld = useRef(false);
+
   useFrame((_, delta) => {
+    const isHeld = introState.arcs < 1;
+    if (wasHeld.current && !isHeld) {
+      slots.current.forEach((slot, index) =>
+        queueLaunch(slot, index * INTRO.layers.arcs.stagger),
+      );
+    }
+    wasHeld.current = isHeld;
+
     for (let index = 0; index < arcUniforms.length; index++) {
       const material = arcMaterials.current[index];
       if (!material) continue;
       material.uniforms.uSceneOpacity.value = sceneCurrent.planet;
       const slot = slots.current[index];
-      if (!slot) continue;
+      if (!slot || isHeld) continue;
       const landedOn = advanceSlot(slot, material.uniforms, delta);
       if (landedOn >= 0 && markersRef.current) {
         markersRef.current.uniforms.uFlash.value[landedOn] = 1;

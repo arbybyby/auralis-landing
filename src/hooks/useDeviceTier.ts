@@ -40,7 +40,8 @@ function subscribe(): () => void {
   return () => {};
 }
 
-function getSnapshot(): DeviceTier {
+/** The device tier, for browser code outside React rendering (the hook is for components). */
+export function getDeviceTier(): DeviceTier {
   cachedTier ??= detectTier();
   return cachedTier;
 }
@@ -51,5 +52,5 @@ function getServerSnapshot(): DeviceTier {
 }
 
 export function useDeviceTier(): DeviceTier {
-  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  return useSyncExternalStore(subscribe, getDeviceTier, getServerSnapshot);
 }

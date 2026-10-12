@@ -84,6 +84,7 @@ export function Navbar() {
 
   return (
     <header
+      data-intro-border
       onKeyDown={trapFocus}
       className="fixed inset-x-0 top-0 z-50 border-b border-line"
     >
@@ -91,9 +92,15 @@ export function Navbar() {
           containing block for the fixed menu below and squeeze the menu into the header's height. */}
       <div
         aria-hidden
+        data-intro-bar
         className="absolute inset-0 -z-10 bg-void/40 backdrop-blur-xl"
       />
-      <Container className="flex h-16 items-center justify-between">
+      {/* Only the content takes part in the intro. Fading the whole header would put the blur
+          under an animated opacity, which stalls a frame as it appears. */}
+      <Container
+        data-intro="nav"
+        className="flex h-16 items-center justify-between"
+      >
         <a href="#top" onClick={close} className="relative z-10">
           <AuralisLogo />
         </a>

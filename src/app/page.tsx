@@ -1,3 +1,4 @@
+import { IntroSequence } from "@/components/IntroSequence";
 import { FinalCta } from "@/components/sections/FinalCta";
 import { Features } from "@/components/sections/Features";
 import { Footer } from "@/components/sections/Footer";
@@ -11,10 +12,14 @@ import { TrustStrip } from "@/components/sections/TrustStrip";
 import { UseCases } from "@/components/sections/UseCases";
 import { SmoothScroll } from "@/components/SmoothScroll";
 import { SceneLoader } from "@/components/three/SceneLoader";
+import { INTRO_BOOT_SCRIPT } from "@/lib/intro";
 
 export default function HomePage() {
   return (
     <>
+      {/* Runs while the HTML is parsed, so the hero is in its intro state from first paint. */}
+      <script dangerouslySetInnerHTML={{ __html: INTRO_BOOT_SCRIPT }} />
+      <IntroSequence />
       <SmoothScroll />
       <SceneLoader />
       <Navbar />

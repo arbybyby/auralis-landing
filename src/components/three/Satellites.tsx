@@ -12,6 +12,7 @@ import type { ShaderMaterial } from "three";
 
 import { satelliteShader } from "@/components/three/satelliteShader";
 import { BRAND_COLORS, ORBITS, PLANET, SATELLITES } from "@/lib/constants";
+import { introState } from "@/lib/introStore";
 import { orbitRotation } from "@/lib/orbits";
 import { createRandom, randomBetween } from "@/lib/random";
 import { sceneCurrent } from "@/lib/sceneStore";
@@ -132,7 +133,8 @@ export function Satellites({
     // Same scale PointsMaterial uses for size attenuation: half the drawing-buffer height.
     material.uniforms.uPointScale.value =
       (state.size.height * state.viewport.dpr) / 2;
-    material.uniforms.uSceneOpacity.value = sceneCurrent.orbits;
+    material.uniforms.uSceneOpacity.value =
+      sceneCurrent.orbits * introState.satellites;
     if (animated) material.uniforms.uTime.value += delta;
   });
 

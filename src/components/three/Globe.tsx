@@ -2,11 +2,17 @@ import type { RefObject } from "react";
 
 import { Atmosphere } from "@/components/three/Atmosphere";
 import { DataArcs } from "@/components/three/DataArcs";
+import { getIntroPath } from "@/components/three/introMotion";
+import { IntroShockwave } from "@/components/three/IntroShockwave";
+import { IntroSpark } from "@/components/three/IntroSpark";
+import { IntroTrail } from "@/components/three/IntroTrail";
 import { Orbits } from "@/components/three/Orbits";
 import { ParallaxGroup } from "@/components/three/ParallaxGroup";
 import { Planet } from "@/components/three/Planet";
 import { Satellites } from "@/components/three/Satellites";
 import { ScrollGroup } from "@/components/three/ScrollGroup";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
+import { useShaderWarmUp } from "@/hooks/useShaderWarmUp";
 import type { ParallaxInput } from "@/hooks/usePointerParallax";
 import { PARALLAX } from "@/lib/constants";
 import type { PlanetPointCounts } from "@/lib/planetPoints";
@@ -26,7 +32,8 @@ interface GlobeProps {
 /**
  * Everything that belongs to the planet shares one transform, so whatever moves the globe moves
  * it all: scroll places the system, the pointer turns it, and the planet spins inside. Markers and
- * arcs sit inside the planet's spin; orbits and satellites do not.
+ * arcs sit inside the planet's spin; orbits and satellites do not. The intro's spark, trail and
+ * shockwave live in the same frame, so its camera moves carry them too.
  */
 export function Globe({
   pointCounts,
@@ -37,13 +44,21 @@ export function Globe({
   animated,
   parallax,
 }: GlobeProps) {
+  const introPath = getIntroPath(useIsDesktop() ? "desktop" : "mobile");
+  // The globe mounts all at once, so by now every one of its shaders is in the scene.
+  useShaderWarmUp();
+
   return (
     <ScrollGroup>
+      <IntroTrail path={introPath} />
+      <IntroSpark path={introPath} />
+      <IntroShockwave />
       <ParallaxGroup input={parallax}>
         <Planet
           pointCounts={pointCounts}
           rotationSpeed={rotationSpeed}
           pointer={parallax}
+          introPath={introPath}
         >
           <DataArcs count={arcCount} animated={animated} />
         </Planet>

@@ -49,9 +49,11 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
+    // The intro boot script marks <html> with a class and a style before hydration.
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable}`}
+      suppressHydrationWarning
     >
       <body>
         <SkipLink label={site.skipLink} />

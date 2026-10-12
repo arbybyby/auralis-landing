@@ -1,6 +1,7 @@
 import { vectorToLatLon } from "@/lib/geo";
 import type { Vector3Tuple } from "@/lib/geo";
 import type { LandMask } from "@/lib/landMask";
+import { createRandom } from "@/lib/random";
 
 export interface PlanetPointCounts {
   land: number;
@@ -12,6 +13,10 @@ export interface PlanetPoints {
   positions: Float32Array;
   /** 1 for land points, 0 for ocean points. */
   land: Float32Array;
+  /** A stable random value in [0, 1) per point. */
+  seeds: Float32Array;
+  /** Four more per point, from a separate sequence so they leave `seeds` unchanged. */
+  randoms: Float32Array;
 }
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
@@ -24,6 +29,7 @@ export function createPlanetPoints(
   mask: LandMask,
   counts: PlanetPointCounts,
   radius: number,
+  seed: number,
 ): PlanetPoints {
   const isLand = (point: Vector3Tuple) => {
     const { latitude, longitude } = vectorToLatLon(point);
@@ -40,13 +46,22 @@ export function createPlanetPoints(
   const points = [...landPoints, ...oceanPoints];
   const positions = new Float32Array(points.length * 3);
   const land = new Float32Array(points.length);
+  const seeds = new Float32Array(points.length);
+  const randoms = new Float32Array(points.length * 4);
+  const random = createRandom(seed);
+  const extraRandom = createRandom(seed + 1);
 
   points.forEach(([x, y, z], index) => {
     positions.set([x * radius, y * radius, z * radius], index * 3);
     land[index] = index < landPoints.length ? 1 : 0;
+    seeds[index] = random();
+    randoms.set(
+      [extraRandom(), extraRandom(), extraRandom(), extraRandom()],
+      index * 4,
+    );
   });
 
-  return { positions, land };
+  return { positions, land, seeds, randoms };
 }
 
 /** Unit vectors spread evenly over a sphere along a golden-angle spiral. */

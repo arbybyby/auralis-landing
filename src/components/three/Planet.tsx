@@ -10,9 +10,13 @@ import {
 } from "three";
 import type { Group, ShaderMaterial } from "three";
 
+import type { IntroPath } from "@/components/three/introMotion";
 import { planetShader } from "@/components/three/planetShader";
+import { SWARM_DEFINES, useIntroSwarm } from "@/hooks/useIntroSwarm";
 import type { ParallaxInput } from "@/hooks/usePointerParallax";
 import { BRAND_COLORS, PLANET, POINTER_GLOW } from "@/lib/constants";
+import { INTRO } from "@/lib/intro";
+import { markIntroReady } from "@/lib/introStore";
 import { loadLandMask } from "@/lib/landMask";
 import type { LandMask } from "@/lib/landMask";
 import { createPlanetPoints } from "@/lib/planetPoints";
@@ -26,6 +30,8 @@ interface PlanetProps {
   rotationSpeed: number;
   /** Smoothed pointer input; the side of the planet facing the pointer brightens slightly. */
   pointer: RefObject<ParallaxInput>;
+  /** The intro's path and swarm for the current layout; the points fly it before they settle. */
+  introPath: IntroPath;
   /** Surface features, such as city markers and arcs, that turn with the planet. */
   children?: ReactNode;
 }
@@ -37,10 +43,17 @@ function createGeometry(
   mask: LandMask,
   counts: PlanetPointCounts,
 ): BufferGeometry {
-  const { positions, land } = createPlanetPoints(mask, counts, PLANET.radius);
+  const { positions, land, seeds, randoms } = createPlanetPoints(
+    mask,
+    counts,
+    PLANET.radius,
+    PLANET.seed,
+  );
   const geometry = new BufferGeometry();
   geometry.setAttribute("position", new BufferAttribute(positions, 3));
   geometry.setAttribute("aLand", new BufferAttribute(land, 1));
+  geometry.setAttribute("aSeed", new BufferAttribute(seeds, 1));
+  geometry.setAttribute("aRandom", new BufferAttribute(randoms, 4));
   return geometry;
 }
 
@@ -63,6 +76,7 @@ export function Planet({
   pointCounts,
   rotationSpeed,
   pointer,
+  introPath,
   children,
 }: PlanetProps) {
   const landMask = use(loadLandMask());
@@ -76,9 +90,23 @@ export function Planet({
   );
   useEffect(() => () => geometry.dispose(), [geometry]);
 
-  const uniforms = useMemo(() => createUniforms(), []);
+  const swarmUniforms = useIntroSwarm(materialRef, spinRef, introPath);
+  const uniforms = useMemo(
+    () => ({ ...createUniforms(), ...swarmUniforms }),
+    [swarmUniforms],
+  );
+  // Frames run so far, up to the warm-up count. The GPU finishes preparing a shader only once it
+  // has drawn with it, and a few frames in, the first ones have surely gone through.
+  const framesRun = useRef(0);
+
+  // Rendering this component means the land mask is ready and the points are built.
+  useEffect(() => markIntroReady("planet"), []);
 
   useFrame((state, delta) => {
+    if (framesRun.current < INTRO.warmUpFrames) {
+      framesRun.current += 1;
+      if (framesRun.current === INTRO.warmUpFrames) markIntroReady("frame");
+    }
     if (spinRef.current) {
       spinRef.current.rotation.y +=
         (rotationSpeed + sceneMotion.spinBoost) * delta;
@@ -111,12 +139,14 @@ export function Planet({
   return (
     <group ref={tiltRef} rotation-z={PLANET.axialTilt}>
       <group ref={spinRef}>
-        <points geometry={geometry}>
+        {/* The intro flies the points far outside the sphere, so its bounds are no use for culling. */}
+        <points geometry={geometry} frustumCulled={false}>
           <shaderMaterial
             ref={materialRef}
             vertexShader={planetShader.vertex}
             fragmentShader={planetShader.fragment}
             uniforms={uniforms}
+            defines={SWARM_DEFINES}
             transparent
             depthWrite={false}
             blending={AdditiveBlending}

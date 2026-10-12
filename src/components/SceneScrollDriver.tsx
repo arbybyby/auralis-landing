@@ -2,6 +2,7 @@
 
 import { CAMERA, DESKTOP_QUERY, SCENE_SCROLL } from "@/lib/constants";
 import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap";
+import { isIntroRunning, subscribeIntro } from "@/lib/introStore";
 import {
   copySceneState,
   sampleSceneStates,
@@ -18,11 +19,14 @@ function sceneUnitsPerPixel(z: number): number {
   return (2 * (CAMERA.distance - z) * HALF_FOV_TANGENT) / window.innerHeight;
 }
 
-/** Scrubs the scene smoothly between section states as the page scrolls. */
+/**
+ * Scrubs the scene smoothly between section states as the page scrolls. Paused while the intro
+ * holds the globe; returns the cleanup for that subscription.
+ */
 function scrubBetweenSections(
   sections: HTMLElement[],
   states: SceneState[],
-): void {
+): () => void {
   // Measuring triggers only: each `start` is the scroll position at which its section sits
   // centred on screen, and ScrollTrigger keeps it current through resizes and refreshes.
   const centres = sections.map((section) =>
@@ -53,7 +57,9 @@ function scrubBetweenSections(
     {
       position: () => ScrollTrigger.maxScroll(window),
       ease: "none",
-      onUpdate: update,
+      onUpdate: () => {
+        if (!isIntroRunning()) update();
+      },
       scrollTrigger: {
         start: 0,
         end: "max",
@@ -64,6 +70,10 @@ function scrubBetweenSections(
   );
   scroll.position = window.scrollY;
   update();
+  // Take over from wherever the page is once the intro hands it back.
+  return subscribeIntro(() => {
+    if (!isIntroRunning()) update();
+  });
 }
 
 /** Reduced motion: no scrubbing, the scene simply switches when another section takes over. */
@@ -114,8 +124,11 @@ export function SceneScrollDriver() {
         const sections = present.map(({ section }) => section);
         const states = present.map(({ state }) => state);
 
-        if (conditions?.reduceMotion) switchBetweenSections(sections, states);
-        else scrubBetweenSections(sections, states);
+        if (conditions?.reduceMotion) {
+          switchBetweenSections(sections, states);
+          return;
+        }
+        return scrubBetweenSections(sections, states);
       },
     );
     return () => media.revert();

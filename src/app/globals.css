@@ -57,6 +57,9 @@
   html {
     color-scheme: dark;
     background-color: var(--color-void);
+    /* Keeps the scrollbar's space while scrolling is locked (intro, mobile menu), so the page
+       does not jump sideways when the scrollbar comes back. */
+    scrollbar-gutter: stable;
     scrollbar-width: thin;
     scrollbar-color: var(--color-surface-2) var(--color-void);
   }
@@ -111,8 +114,78 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
+/* Intro states, set on <html> by the boot script (names match INTRO in lib/intro.ts). Without
+   JavaScript neither class exists, so the page shows in full and the loader never does. These
+   rules sit outside any layer so they win over the utilities on the same elements. */
+
+/* The full intro may play: everything it reveals waits hidden, the navigation bar waits clear (no
+   tint, blur or border to darken the sky), and the buttons' hover transition stays out of the way
+   of the animation. The bar's tint and border fade in once the page is handed back. */
+html.intro-pending [data-intro] {
+  opacity: 0;
+}
+
+html.intro-pending [data-intro-bar] {
+  background-color: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+[data-intro-bar] {
+  transition: background-color 0.6s ease-out;
+}
+
+/* The hero's backdrop is pure decoration (gradients, no text), so it can wait painted at a
+   strength no one can see. The GPU then prepares its gradients and blending while the scene
+   loads, instead of stalling the intro when the backdrop fades in. */
+html.intro-pending [data-intro="backdrop"] {
+  opacity: 0.01;
+}
+
+html.intro-pending [data-intro-border] {
+  border-color: transparent;
+}
+
+html.intro-pending [data-intro="button"] {
+  transition: none;
+}
+
+[data-intro-border] {
+  transition: border-color 0.6s ease-out;
+}
+
+/* It will not: a plain fade from first paint, with no wait for scripts. */
+html.intro-quick [data-intro] {
+  animation: intro-fade var(--intro-fade) ease-out;
+}
+
+.intro-loader {
+  display: none;
+}
+
+html.intro-pending .intro-loader {
+  display: block;
+}
+
+/* Each word masks its letters as they rise into place. The extra padding, cancelled by negative
+   margins so the layout is untouched, keeps ascenders, descenders and the italic's overhang clear
+   of the clip; only the vertical axis clips, so letters can lean out sideways. */
+.intro-mask {
+  overflow-x: visible;
+  overflow-y: clip;
+  padding-block: 0.15em 0.3em;
+  margin-block: -0.15em -0.3em;
+}
+
+@keyframes intro-fade {
+  from {
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  *,
+  /* The intro's plain fade stays: it changes opacity only, and nothing moves. */
+  *:not([data-intro]),
   *::before,
   *::after {
     animation: none !important;

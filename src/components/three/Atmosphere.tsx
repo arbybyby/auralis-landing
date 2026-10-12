@@ -5,6 +5,7 @@ import type { ShaderMaterial } from "three";
 
 import { atmosphereShader } from "@/components/three/atmosphereShader";
 import { ATMOSPHERE, BRAND_COLORS, PLANET } from "@/lib/constants";
+import { introState } from "@/lib/introStore";
 import { sceneCurrent } from "@/lib/sceneStore";
 
 // The planet's silhouette as a fraction of the shell's radius: the glow peaks there, in cyan,
@@ -27,7 +28,7 @@ export function Atmosphere() {
   useFrame(() => {
     if (!materialRef.current) return;
     materialRef.current.uniforms.uIntensity.value =
-      ATMOSPHERE.intensity * sceneCurrent.atmosphere;
+      ATMOSPHERE.intensity * sceneCurrent.atmosphere * introState.atmosphere;
   });
 
   return (

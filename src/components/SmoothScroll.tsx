@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { SMOOTH_SCROLL } from "@/lib/constants";
 import { gsap, ScrollTrigger } from "@/lib/gsap";
+import { isIntroRunning } from "@/lib/introStore";
 import { scrollToElement, setSmoothScroll } from "@/lib/smoothScroll";
 
 // GSAP's own lag-smoothing defaults, restored when smooth scrolling is torn down.
@@ -48,6 +49,8 @@ export function SmoothScroll() {
     if (prefersReducedMotion) return;
 
     const lenis = new Lenis({ lerp: SMOOTH_SCROLL.lerp, syncTouch: false });
+    // The intro may already hold the page still; it starts Lenis again when it hands over.
+    if (isIntroRunning()) lenis.stop();
     lenis.on("scroll", ScrollTrigger.update);
     const tick = (time: number) => lenis.raf(time * 1000);
     gsap.ticker.add(tick);

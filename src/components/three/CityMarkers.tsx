@@ -12,6 +12,7 @@ import type { ShaderMaterial } from "three";
 import { cityMarkerShader } from "@/components/three/cityMarkerShader";
 import { CITY_DIRECTIONS, CITIES } from "@/lib/cities";
 import { BRAND_COLORS, CITY_MARKERS, PLANET } from "@/lib/constants";
+import { introState } from "@/lib/introStore";
 import { sceneCurrent } from "@/lib/sceneStore";
 
 interface CityMarkersProps {
@@ -69,7 +70,8 @@ export function CityMarkers({ materialRef, animated }: CityMarkersProps) {
     // Same scale PointsMaterial uses for size attenuation: half the drawing-buffer height.
     material.uniforms.uPointScale.value =
       (state.size.height * state.viewport.dpr) / 2;
-    material.uniforms.uSceneOpacity.value = sceneCurrent.planet;
+    material.uniforms.uSceneOpacity.value =
+      sceneCurrent.planet * introState.markers;
     if (!animated) return;
 
     material.uniforms.uTime.value += CITY_MARKERS.pulseSpeed * delta;

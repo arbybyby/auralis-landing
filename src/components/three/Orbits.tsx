@@ -10,6 +10,7 @@ import type { LineLoop, ShaderMaterial } from "three";
 
 import { orbitShader } from "@/components/three/orbitShader";
 import { BRAND_COLORS, ORBITS, PLANET } from "@/lib/constants";
+import { introState } from "@/lib/introStore";
 import { orbitRotation } from "@/lib/orbits";
 import type { OrbitRing } from "@/lib/orbits";
 import { sceneCurrent } from "@/lib/sceneStore";
@@ -52,6 +53,7 @@ function Orbit({ ring, geometry, animated }: OrbitProps) {
       uMaxOpacity: { value: ORBITS.opacity.max },
       uSharpness: { value: ORBITS.highlightSharpness },
       uSceneOpacity: { value: 1 },
+      uDraw: { value: 1 },
     }),
     [ring],
   );
@@ -59,6 +61,7 @@ function Orbit({ ring, geometry, animated }: OrbitProps) {
   useFrame((_, delta) => {
     if (materialRef.current) {
       materialRef.current.uniforms.uSceneOpacity.value = sceneCurrent.orbits;
+      materialRef.current.uniforms.uDraw.value = introState.orbits;
     }
     // Spinning a circle about its own axis leaves the path in place and sweeps the highlight round.
     if (animated && spinRef.current) {

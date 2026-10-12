@@ -10,6 +10,7 @@ import type { DeviceTier } from "@/hooks/useDeviceTier";
 import { usePageVisible } from "@/hooks/usePageVisible";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { CAMERA, SCENE_TIERS } from "@/lib/constants";
+import { markIntroReady } from "@/lib/introStore";
 import {
   getLayerOpacity,
   isLayerVisible,
@@ -42,6 +43,10 @@ const DevStats =
         })),
       )
     : null;
+
+function markSceneReady(): void {
+  markIntroReady("scene");
+}
 
 // The canvas only mounts in the browser, so the server answer is never used for rendering.
 function layerVisibleOnServer(): boolean {
@@ -96,6 +101,7 @@ export function SceneCanvas({ tier }: SceneCanvasProps) {
         )}
         gl={GL_OPTIONS}
         camera={CAMERA_OPTIONS}
+        onCreated={markSceneReady}
         // The canvas wrapper sets pointer-events itself, so the parent's class alone is not enough.
         style={{ pointerEvents: "none" }}
       >

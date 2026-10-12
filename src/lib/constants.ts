@@ -95,6 +95,8 @@ export const PLANET = {
     land: 0.9,
     ocean: 0.22,
   },
+  /** Fixed seed for the per-point randomness (size, hue and the intro assembly order). */
+  seed: 3,
 } as const;
 
 export const ATMOSPHERE = {

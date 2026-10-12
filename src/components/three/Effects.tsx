@@ -3,6 +3,7 @@ import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import type { BloomEffect } from "postprocessing";
 import { useRef } from "react";
 
+import { introState } from "@/lib/introStore";
 import { sceneCurrent } from "@/lib/sceneStore";
 
 interface BloomSettings {
@@ -20,10 +21,11 @@ interface EffectsProps {
 export function Effects({ bloom }: EffectsProps) {
   const bloomRef = useRef<BloomEffect>(null);
 
-  // Each section scales the tier's bloom; the hero keeps it as set.
+  // Each section scales the tier's bloom and the hero keeps it as set; the intro flares it.
   useFrame(() => {
     if (bloomRef.current) {
-      bloomRef.current.intensity = bloom.intensity * sceneCurrent.bloom;
+      bloomRef.current.intensity =
+        bloom.intensity * sceneCurrent.bloom * introState.bloom;
     }
   });
 

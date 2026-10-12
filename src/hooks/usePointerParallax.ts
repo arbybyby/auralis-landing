@@ -5,6 +5,7 @@ import { MathUtils } from "three";
 
 import { useInteractionMode } from "@/hooks/useInteractionMode";
 import { PARALLAX } from "@/lib/constants";
+import { isIntroRunning } from "@/lib/introStore";
 
 export interface ParallaxInput {
   /** -1 at the left edge to 1 at the right. */
@@ -19,6 +20,8 @@ export interface ParallaxInput {
 type OrientationEventWithPermission = typeof DeviceOrientationEvent & {
   requestPermission?: () => Promise<"granted" | "denied">;
 };
+
+const AT_REST: Readonly<ParallaxInput> = { x: 0, y: 0, presence: 0 };
 
 function rest(input: ParallaxInput): void {
   input.x = 0;
@@ -107,7 +110,8 @@ export function usePointerParallax(): RefObject<ParallaxInput> {
   // input sees this frame's value. Without it, a still frame could hold a stale offset.
   useFrame((_, delta) => {
     const from = smoothed.current;
-    const to = target.current;
+    // The intro owns the globe until it hands over; the pointer then eases in from rest.
+    const to = isIntroRunning() ? AT_REST : target.current;
     if (mode === "none") {
       rest(from);
       return;

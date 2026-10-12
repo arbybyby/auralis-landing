@@ -10,6 +10,7 @@ import type { ShaderMaterial } from "three";
 
 import { starsShader } from "@/components/three/starsShader";
 import { BRAND_COLORS, STARS } from "@/lib/constants";
+import { introState } from "@/lib/introStore";
 import { createStarField } from "@/lib/starField";
 
 interface StarsProps {
@@ -56,6 +57,7 @@ export function Stars({ count, twinkleSpeed }: StarsProps) {
     const material = materialRef.current;
     if (!material) return;
     material.uniforms.uPixelRatio.value = state.viewport.dpr;
+    material.uniforms.uOpacity.value = STARS.opacity * introState.stars;
     // Time advances at the twinkle speed, so a speed of 0 freezes the sky.
     material.uniforms.uTime.value += twinkleSpeed * delta;
   });
