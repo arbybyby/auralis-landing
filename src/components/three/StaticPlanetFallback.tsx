@@ -1,11 +1,7 @@
-import type { CSSProperties } from "react";
-
 import { CAMERA, PLANET, STATIC_PLANET } from "@/lib/constants";
+import type { CssVariables } from "@/lib/cssVariables";
 import { SCENE_KEYFRAMES } from "@/lib/sceneStates";
 import type { SceneState } from "@/lib/sceneStates";
-
-// React's style type has no entry for custom properties.
-type CustomProperties = CSSProperties & Record<`--${string}`, string>;
 
 const TAN_HALF_FOV = Math.tan((CAMERA.fov * Math.PI) / 360);
 
@@ -30,7 +26,7 @@ function placePlanet(state: SceneState) {
 
 const mobile = placePlanet(SCENE_KEYFRAMES[0].mobile);
 const desktop = placePlanet(SCENE_KEYFRAMES[0].desktop);
-const variables: CustomProperties = {
+const variables: CssVariables = {
   "--planet-poster": `url(${STATIC_PLANET.poster})`,
   "--planet-x": mobile.x,
   "--planet-y": mobile.y,

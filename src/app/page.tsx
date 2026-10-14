@@ -10,6 +10,7 @@ import { ProblemSolution } from "@/components/sections/ProblemSolution";
 import { Testimonial } from "@/components/sections/Testimonial";
 import { TrustStrip } from "@/components/sections/TrustStrip";
 import { UseCases } from "@/components/sections/UseCases";
+import { ScrollReveals } from "@/components/ScrollReveals";
 import { SmoothScroll } from "@/components/SmoothScroll";
 import { SceneLoader } from "@/components/three/SceneLoader";
 import { INTRO_BOOT_SCRIPT } from "@/lib/intro";
@@ -21,6 +22,7 @@ export default function HomePage() {
       <script dangerouslySetInnerHTML={{ __html: INTRO_BOOT_SCRIPT }} />
       <IntroSequence />
       <SmoothScroll />
+      <ScrollReveals />
       <SceneLoader />
       <Navbar />
       <main id="main" tabIndex={-1} className="outline-none">

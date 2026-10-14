@@ -1,15 +1,18 @@
 import { StaticPlanetFallback } from "@/components/three/StaticPlanetFallback";
-import { Accent, Heading } from "@/components/ui/Heading";
+import { Heading } from "@/components/ui/Heading";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { Eyebrow } from "@/components/ui/Eyebrow";
 import { InteractionHint } from "@/components/ui/InteractionHint";
-import { SplitText } from "@/components/ui/SplitText";
+import { SplitLines } from "@/components/ui/SplitLines";
 import { SplitWords } from "@/components/ui/SplitWords";
 import { hero } from "@/content/hero";
+import { toPlainText } from "@/lib/splitText";
+import type { RichText } from "@/lib/splitText";
 
 export function Hero() {
   const { lead, accent, end } = hero.headline;
+  const headline: RichText = [lead, { accent }, end];
 
   return (
     <section
@@ -42,22 +45,13 @@ export function Hero() {
         <Heading
           level={1}
           id="hero-title"
-          aria-label={`${lead}${accent}${end}`}
+          aria-label={toPlainText(headline)}
           className="mt-6 max-w-5xl"
         >
-          {/* The spaces between the split letters are plain text, so the whole line waits hidden
-              with its letters; otherwise the browser would count the headline as shown too early. */}
+          {/* The spaces between the split words are plain text, so the whole line waits hidden
+              with its words; otherwise the browser would count the headline as shown too early. */}
           <span data-intro="headline">
-            <SplitText text={lead} />
-            {/* Keeps the accent word and its punctuation on one line, as in the plain text. */}
-            <span data-intro-finale className="whitespace-nowrap">
-              <span data-intro-accent>
-                <Accent>
-                  <SplitText text={accent} />
-                </Accent>
-              </span>
-              <SplitText text={end} />
-            </span>
+            <SplitLines text={headline} />
           </span>
         </Heading>
         {/* Waits hidden with its words, for the same reason as the headline. */}

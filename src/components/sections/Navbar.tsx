@@ -111,7 +111,7 @@ export function Navbar() {
               <li key={link.href}>
                 <a
                   href={link.href}
-                  className="text-small text-muted transition-colors duration-300 hover:text-text"
+                  className="link-underline text-small text-muted transition-colors duration-300 hover:text-text"
                 >
                   {link.label}
                 </a>

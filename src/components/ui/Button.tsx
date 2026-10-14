@@ -29,7 +29,8 @@ const base =
 const variants: Record<ButtonVariant, string> = {
   primary:
     "bg-accent text-void hover:shadow-[0_0_2.5rem_-0.25rem_var(--color-accent)]",
-  ghost: "border border-line text-text hover:border-accent hover:text-accent",
+  ghost:
+    "border border-line text-text hover:border-accent hover:text-accent hover:shadow-[0_0_2rem_-0.75rem_var(--color-accent)]",
 };
 
 function ArrowIcon() {
@@ -37,7 +38,7 @@ function ArrowIcon() {
     <svg
       aria-hidden
       viewBox="0 0 16 16"
-      className="size-4 transition-transform duration-300 ease-out-expo group-hover:translate-x-0.5"
+      className="size-4 transition-transform duration-300 ease-out-expo group-hover:translate-x-1"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.5"

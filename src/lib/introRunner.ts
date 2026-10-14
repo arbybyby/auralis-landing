@@ -14,6 +14,7 @@ import {
 } from "@/lib/introStore";
 import type { IntroMilestone, IntroState } from "@/lib/introStore";
 import { startSmoothScroll, stopSmoothScroll } from "@/lib/smoothScroll";
+import { lineIndexes } from "@/lib/textLines";
 
 /** The full sequence, or a plain fade of the finished page. */
 export type IntroMode = "full" | "quick";
@@ -29,13 +30,11 @@ export interface IntroHandle {
 interface IntroElements {
   /** Everything marked `data-intro`: hidden until the intro reveals it. */
   all: HTMLElement[];
-  /** The headline's letters up to "think". */
-  leadChars: HTMLElement[];
-  /** "think", which arrives last. */
-  accentChars: HTMLElement[];
-  /** What follows it: the closing full stop. */
-  closingChars: HTMLElement[];
-  /** The headline's and subtitle's own boxes, shown as their letters and words begin. */
+  /** The headline's words, each in its own mask. */
+  headlineWords: HTMLElement[];
+  /** The accent ("think"), which lights up as it lands. */
+  accent: HTMLElement[];
+  /** The headline's and subtitle's own boxes, shown as their words begin. */
   headline: HTMLElement[];
   subtitle: HTMLElement[];
   eyebrow: HTMLElement[];
@@ -77,15 +76,10 @@ function findAll(selector: string): HTMLElement[] {
 }
 
 function findElements(): IntroElements {
-  const finaleChars = findAll('[data-intro-finale] [data-intro="char"]');
-  const accentChars = findAll('[data-intro-accent] [data-intro="char"]');
   return {
     all: findAll("[data-intro]"),
-    leadChars: findAll('[data-intro="char"]').filter(
-      (char) => !finaleChars.includes(char),
-    ),
-    accentChars,
-    closingChars: finaleChars.filter((char) => !accentChars.includes(char)),
+    headlineWords: findAll('[data-intro="headline"] [data-reveal-word]'),
+    accent: findAll('[data-intro="headline"] [data-reveal-accent]'),
     headline: findAll('[data-intro="headline"]'),
     subtitle: findAll('[data-intro="subtitle"]'),
     eyebrow: findAll('[data-intro="eyebrow"]'),
@@ -105,24 +99,6 @@ function findLoaderParts(root: HTMLElement): LoaderParts {
     counter: root.querySelector("[data-intro-counter]"),
     bar: root.querySelector("[data-intro-bar]"),
     track: root.querySelector('[role="progressbar"]'),
-  };
-}
-
-/**
- * From and to values that bring letters into focus without animating a blur radius: a soft glow
- * of fixed size in the letter's own colour fades out as the sharp letter fades in.
- */
-function focusVars(letter: HTMLElement | undefined) {
-  const color = letter
-    ? getComputedStyle(letter).color
-    : INTRO.text.flash.color;
-  const [red, green, blue] = gsap.utils.splitColor(color);
-  const tint = (alpha: number) => `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-  const glow = (alpha: number) =>
-    `0 0 ${INTRO.text.focusRadius} ${tint(alpha)}`;
-  return {
-    from: { color: tint(0), textShadow: glow(1) },
-    to: { color: tint(1), textShadow: glow(0) },
   };
 }
 
@@ -356,58 +332,38 @@ function addTextTweens(
     text.backdrop.start,
   );
 
-  // Each letter rises out of its word's mask and turns upright. All but "think" also come into
-  // focus, from a soft glow to the sharp letter; "think" has its own flash below.
-  const below = { opacity: 0, yPercent: text.rise, rotation: text.rotation };
-  const upright = { opacity: 1, yPercent: 0, rotation: 0, ease: "expo.out" };
-  const focus = focusVars(elements.leadChars[0]);
-  timeline
-    .set(elements.headline, { opacity: 1 }, text.lead.start)
-    .fromTo(
-      elements.leadChars,
-      { ...below, ...focus.from },
-      {
-        ...upright,
-        ...focus.to,
-        duration: text.lead.duration,
-        stagger: text.lead.stagger,
-      },
-      text.lead.start,
-    )
-    .fromTo(
-      elements.accentChars,
-      below,
-      {
-        ...upright,
-        duration: text.finale.duration,
-        stagger: text.finale.stagger,
-      },
-      text.finale.start,
-    )
-    .fromTo(
-      elements.closingChars,
-      { ...below, ...focus.from },
-      { ...upright, ...focus.to, duration: text.finale.duration },
-      text.finale.start + elements.accentChars.length * text.finale.stagger,
-    );
-
-  // "think" arrives leaning further and a little larger, settles into its italic, and flashes
-  // white with a cyan glow before relaxing to its accent colour.
-  timeline
-    .fromTo(
-      elements.accentChars,
-      { skewX: text.settle.skew, scale: text.settle.scale },
-      {
-        skewX: 0,
-        scale: 1,
-        duration: text.finale.duration,
-        stagger: text.finale.stagger,
-        ease: "back.out(2)",
-      },
-      text.finale.start,
-    )
-    .fromTo(
-      elements.accentChars,
+  // The headline rises out of its word masks line by line, as the section headings do, only
+  // slower. "think" follows a beat after its line and lands lit white, cooling to its accent.
+  const { headline } = text;
+  const words = elements.headlineWords;
+  const lineOf = lineIndexes(words);
+  const isAccent = words.map((word) =>
+    elements.accent.some((run) => word.contains(run)),
+  );
+  const delays = words.map(
+    (_, index) =>
+      lineOf[index] * headline.lineStagger +
+      (index - lineOf.indexOf(lineOf[index])) * headline.wordStagger +
+      (isAccent[index] ? headline.accentDelay : 0),
+  );
+  timeline.set(elements.headline, { opacity: 1 }, headline.start).fromTo(
+    words,
+    { yPercent: headline.rise },
+    {
+      yPercent: 0,
+      duration: headline.duration,
+      ease: "expo.out",
+      stagger: (index: number) => delays[index],
+      // Words that start later must already wait below their masks when the headline shows. The
+      // headline is still hidden while they are set, so nothing extra is painted.
+      immediateRender: true,
+    },
+    headline.start,
+  );
+  const accentIndex = isAccent.indexOf(true);
+  if (accentIndex !== -1) {
+    timeline.fromTo(
+      elements.accent,
       { color: flash.color, textShadow: flash.shadow },
       {
         color: BRAND_COLORS.cyan,
@@ -415,8 +371,9 @@ function addTextTweens(
         duration: flash.duration,
         ease: "power2.out",
       },
-      text.finale.start,
+      headline.start + delays[accentIndex],
     );
+  }
 
   timeline
     .fromTo(
@@ -545,9 +502,15 @@ export function runIntro(
       INTRO.liveClass,
     );
     root.style.removeProperty(INTRO.fadeProperty);
-    gsap.set([...elements.all, ...elements.eyebrowLine], {
-      clearProps: ANIMATED_PROPS,
-    });
+    gsap.set(
+      [
+        ...elements.all,
+        ...elements.eyebrowLine,
+        ...elements.headlineWords,
+        ...elements.accent,
+      ],
+      { clearProps: ANIMATED_PROPS },
+    );
     try {
       sessionStorage.setItem(INTRO.storageKey, "1");
     } catch {

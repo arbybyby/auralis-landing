@@ -2,12 +2,14 @@ import { AuralisLogo } from "@/components/ui/AuralisLogo";
 import { Container } from "@/components/ui/Container";
 import { footer } from "@/content/finalCta";
 import { site } from "@/content/site";
+import { reveal } from "@/lib/reveal";
 
 export function Footer() {
   return (
     // Solid, so the scene's last state rises from behind the footer instead of under its links.
     <footer className="border-t border-line bg-void py-12">
-      <Container className="flex flex-col gap-10">
+      {/* The content fades in; the footer itself stays solid, so the scene never shows through it. */}
+      <Container {...reveal("fade-in")} className="flex flex-col gap-10">
         <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
           <a href="#top">
             <AuralisLogo />
@@ -18,7 +20,7 @@ export function Footer() {
                 <li key={link.href}>
                   <a
                     href={link.href}
-                    className="text-small text-muted transition-colors duration-300 hover:text-text"
+                    className="link-underline text-small text-muted transition-colors duration-300 hover:text-text"
                   >
                     {link.label}
                   </a>

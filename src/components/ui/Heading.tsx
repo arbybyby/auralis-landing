@@ -1,4 +1,4 @@
-import type { ComponentPropsWithoutRef, ReactNode } from "react";
+import type { ComponentPropsWithoutRef } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -21,6 +21,14 @@ export function Heading({ level, className, ...props }: HeadingProps) {
 }
 
 /** Italic serif highlight for a single word inside a heading. */
-export function Accent({ children }: { children: ReactNode }) {
-  return <span className="font-serif text-accent italic">{children}</span>;
+export function Accent({
+  className,
+  ...props
+}: ComponentPropsWithoutRef<"span">) {
+  return (
+    <span
+      className={cn("font-serif text-accent italic", className)}
+      {...props}
+    />
+  );
 }

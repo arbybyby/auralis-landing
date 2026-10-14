@@ -48,8 +48,8 @@ const PHASES = {
 const CONDENSE_SECONDS = 3;
 
 /**
- * The one blur size the headline's glows use. Every new blur size the GPU meets costs it a shader
- * compile, which on Windows can drop a few frames, so the letters' focus and the flash share it.
+ * The blur size of the headline's glow, which stays fixed while only its colour fades: every new
+ * blur size the GPU meets costs it a shader compile, which on Windows can drop a few frames.
  */
 const GLOW_RADIUS = "0.14em";
 
@@ -313,27 +313,26 @@ export const INTRO = {
   text: {
     /** The hero's glow and the scrim behind the copy fade in before the headline lands. */
     backdrop: { start: 7.05, duration: 1 },
-    /** Headline letters rise out of their line's mask, turning upright and coming into focus. */
-    lead: { start: PHASES.text, duration: 1.1, stagger: 0.045 },
-    /** "think." arrives last. */
-    finale: { start: 8.2, duration: 1, stagger: 0.06 },
-    /** Letters start below the mask (share of their height) and tilted (degrees). */
-    rise: 130,
-    rotation: 9,
     /**
-     * Letters come into focus as a soft glow fades and the sharp letter appears. Animating a
-     * blur's radius instead would make the GPU compile a shader for every step.
+     * Headline words rise out of their masks line by line, as the section headings do, only
+     * slower. Words start below the mask (a share of their height); "think" follows a beat after
+     * the rest of its line.
      */
-    focusRadius: GLOW_RADIUS,
-    /** "think" rises white with a cyan glow, then relaxes to its accent colour. */
+    headline: {
+      start: PHASES.text,
+      duration: 1.3,
+      rise: 140,
+      lineStagger: 0.16,
+      wordStagger: 0.05,
+      accentDelay: 0.3,
+    },
+    /** "think" rises lit white with a cyan glow, then cools to its accent colour. */
     flash: {
-      duration: 1,
+      duration: 1.2,
       color: "#ffffff",
       shadow: `0 0 ${GLOW_RADIUS} rgba(94, 231, 255, 0.9)`,
       shadowEnd: `0 0 ${GLOW_RADIUS} rgba(94, 231, 255, 0)`,
     },
-    /** Its italic arrives leaning further (degrees) and slightly larger, then settles. */
-    settle: { skew: -14, scale: 1.12 },
     /**
      * A line draws in under the eyebrow and wipes its text in as it goes, then fades. The clip
      * reaches above and below the eyebrow so the line under it stays inside.
